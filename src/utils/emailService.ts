@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 
-// Create a transporter using SMTP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {

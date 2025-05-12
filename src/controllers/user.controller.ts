@@ -78,7 +78,6 @@ export class UserController {
     }
   };
   
-
   updateMembershipType = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { membershipType } = req.body;
