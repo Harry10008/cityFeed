@@ -61,37 +61,47 @@ export class UserController {
 
   updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if ('email' in req.body) {
+        delete req.body.email;
+      }
+  
       const updateData = UpdateUserDto.parse(req.body);
+  
       const user = await this.userService.updateProfile(req.user._id, updateData);
       
       res.status(200).json({
         status: 'success',
-        data: {
-          user
-        }
+        data: { user }
       });
     } catch (error) {
       next(error);
     }
   };
+  
 
   updateMembershipType = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { membershipType } = req.body;
-      if (!['basic', 'premium', 'vip'].includes(membershipType)) {
+      const allowedTypes = ['basic', 'bronze', 'silver', 'gold', 'platinum'];
+  
+      if (!allowedTypes.includes(membershipType)) {
         throw new AppError('Invalid membership type', 400);
       }
-
+  
+      // Check if non-admin is trying to assign "platinum"
+      if (membershipType === 'platinum' && req.user.role !== 'admin') {
+        throw new AppError('Only admins can assign platinum membership', 403);
+      }
+  
       const user = await this.userService.updateMembershipType(req.user._id, membershipType);
-      
+  
       res.status(200).json({
         status: 'success',
-        data: {
-          user
-        }
+        data: { user }
       });
     } catch (error) {
       next(error);
     }
   };
+  
 } 

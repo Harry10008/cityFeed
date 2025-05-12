@@ -62,13 +62,14 @@ export class UserService {
     return user;
   }
 
-  async updateMembershipType(userId: string, membershipType: 'basic' | 'premium' | 'vip'): Promise<IUser> {
+  async updateMembershipType(userId: string, membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum'): Promise<IUser> {
     const user = await this.userRepository.updateMembershipType(userId, membershipType);
     if (!user) {
       throw new AppError('User not found', 404);
     }
     return user;
   }
+  
 
   private generateToken(user: IUser): string {
     const payload = { id: user._id, role: user.role };

@@ -54,7 +54,7 @@ export class UserRepository {
     }
   }
 
-  async updateMembershipType(id: string, membershipType: 'basic' | 'premium' | 'vip'): Promise<IUser | null> {
+  async updateMembershipType(id: string, membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum'): Promise<IUser | null> {
     try {
       return await User.findByIdAndUpdate(
         id,
@@ -65,4 +65,5 @@ export class UserRepository {
       throw new AppError('Error updating user membership type', 500);
     }
   }
+  
 } 
