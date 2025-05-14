@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from '../dto/user.dto';
 import { AppError } from '../utils/appError';
+import { verifyToken } from '../utils/emailService'; // adjust path if needed
+import { SMSService } from '../utils/smsService';
 
 export class UserController {
   private userService: UserService;
@@ -27,6 +29,26 @@ export class UserController {
     }
   };
 
+  verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') {
+        throw new AppError('Verification token is required', 400);
+      }
+  
+      const { userId } = verifyToken(token);
+  
+      const user = await this.userService.verifyUser(userId);
+      res.status(200).json({
+        status: 'success',
+        message: 'Email verified successfully',
+        user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+  
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const loginData = LoginUserDto.parse(req.body);
@@ -61,12 +83,28 @@ export class UserController {
 
   updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Check if trying to update email or phone
       if ('email' in req.body) {
-        delete req.body.email;
+        throw new AppError(
+          'Email cannot be updated through this endpoint. Please use /profile/email/initiate',
+          400
+        );
       }
-  
+      
+      if ('phone' in req.body) {
+        throw new AppError(
+          'Phone number cannot be updated through this endpoint. Please use /profile/phone/initiate',
+          400
+        );
+      }
+
       const updateData = UpdateUserDto.parse(req.body);
-  
+      
+      // Validate phone number if it's being updated
+      if (updateData.phone && !SMSService.validatePhoneNumber(updateData.phone)) {
+        throw new AppError('Invalid phone number format', 400);
+      }
+
       const user = await this.userService.updateProfile(req.user._id, updateData);
       
       res.status(200).json({
@@ -103,4 +141,81 @@ export class UserController {
     }
   };
   
+  async initiateEmailUpdate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { newEmail } = req.body;
+      
+      if (!newEmail) {
+        throw new AppError('New email is required', 400);
+      }
+
+      await this.userService.initiateEmailUpdate(req.user._id, newEmail);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'OTP sent to new email address. Please check your email and verify within 10 minutes.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyAndUpdateEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { newEmail, otp } = req.body;
+      
+      if (!newEmail || !otp) {
+        throw new AppError('New email and OTP are required', 400);
+      }
+
+      const user = await this.userService.verifyAndUpdateEmail(req.user._id, newEmail, otp);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Email updated successfully',
+        data: { user }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async initiateMobileUpdate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { newPhone } = req.body;
+      
+      if (!newPhone) {
+        throw new AppError('New phone number is required', 400);
+      }
+
+      await this.userService.initiateMobileUpdate(req.user._id, newPhone);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'OTP sent to new phone number. Please check your phone and verify within 10 minutes.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyAndUpdateMobile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { newPhone, otp } = req.body;
+      
+      if (!newPhone || !otp) {
+        throw new AppError('New phone number and OTP are required', 400);
+      }
+
+      const user = await this.userService.verifyAndUpdateMobile(req.user._id, newPhone, otp);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Phone number updated successfully',
+        data: { user }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 } 

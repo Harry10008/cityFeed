@@ -1,6 +1,9 @@
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
+
+dotenv.config();
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {

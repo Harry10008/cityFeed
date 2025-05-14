@@ -35,17 +35,33 @@ const userSchema = new Schema<IUser>(
     membershipType: {
       type: String,
       enum: ['basic', 'bronze', 'silver', 'gold', 'platinum'],
-      default: 'basic'
+      default: 'bronze'
     },    
     isActive: {
       type: Boolean,
       default: true
     },
+    gender: {
+      type: String,
+      enum: ['M', 'F', '0'],
+      required: [true, 'Please provide your gender'],
+    },
+    
     role: {
       type: String,
       enum: ['user'],
       default: 'user'
-    }
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    dob: {
+      type: Date,
+      required: [true, 'Please provide your date of birth']
+    },
+    
+    
   },
   {
     timestamps: true

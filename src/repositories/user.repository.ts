@@ -1,16 +1,12 @@
 import { User } from '../models/user.model';
 import { IUser } from '../interfaces/user.interface';
-import { CreateUserDtoType, UpdateUserDtoType } from '../dto/user.dto';
+import {  UpdateUserDtoType } from '../dto/user.dto';
 import { AppError } from '../utils/appError';
 
 export class UserRepository {
-  async create(data: CreateUserDtoType): Promise<IUser> {
-    try {
-      const user = await User.create(data);
-      return user;
-    } catch (error) {
-      throw new AppError('Error creating user', 500);
-    }
+  async create(data: Partial<IUser>): Promise<IUser> {
+    const user = await User.create(data);
+    return user;
   }
 
   async findById(id: string): Promise<IUser | null> {
@@ -65,5 +61,15 @@ export class UserRepository {
       throw new AppError('Error updating user membership type', 500);
     }
   }
-  
+  async verifyUser(id: string): Promise<IUser | null> {
+    try {
+      return await User.findByIdAndUpdate(id, { isVerified: true }, { new: true });
+    } catch (error) {
+      throw new AppError('Error verifying user', 500);
+    }
+  }
+
+  async findByMobile(mobile: string): Promise<IUser | null> {
+    return await User.findOne({ mobile });
+  }
 } 

@@ -6,7 +6,15 @@ export const CreateUserDto = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   phone: z.string().min(10),
-  address: z.string().min(5)
+  address: z.string().min(5),
+  gender: z.enum(['M', 'F', '0']),
+  dob: z.string().regex(
+    /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/,
+    'Date of birth must be in dd/mm/yyyy format'
+  ),
+  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional()
+
+
 });
 
 export const UpdateUserDto = CreateUserDto.partial();
