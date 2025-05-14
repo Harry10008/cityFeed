@@ -25,6 +25,9 @@ export class UserController {
         }
       });
     } catch (error) {
+      if (error.message.includes('already registered')) {
+        return next(new AppError(error.message, 400));
+      }
       next(error);
     }
   };
@@ -122,6 +125,7 @@ export class UserController {
       const allowedTypes = ['basic', 'bronze', 'silver', 'gold', 'platinum'];
   
       if (!allowedTypes.includes(membershipType)) {
+        console.log("membership type",membershipType)
         throw new AppError('Invalid membership type', 400);
       }
   
@@ -141,11 +145,15 @@ export class UserController {
     }
   };
   
-  async initiateEmailUpdate(req: Request, res: Response, next: NextFunction) {
+  initiateEmailUpdate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log("Request body:", req.body);
+      console.log("Content-Type:", req.headers['content-type']);
+      
       const { newEmail } = req.body;
       
       if (!newEmail) {
+        console.log("newEmail is missing from body");
         throw new AppError('New email is required', 400);
       }
 
@@ -158,9 +166,9 @@ export class UserController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async verifyAndUpdateEmail(req: Request, res: Response, next: NextFunction) {
+  verifyAndUpdateEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { newEmail, otp } = req.body;
       
@@ -178,9 +186,9 @@ export class UserController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async initiateMobileUpdate(req: Request, res: Response, next: NextFunction) {
+  initiateMobileUpdate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { newPhone } = req.body;
       
@@ -197,9 +205,9 @@ export class UserController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async verifyAndUpdateMobile(req: Request, res: Response, next: NextFunction) {
+  verifyAndUpdateMobile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { newPhone, otp } = req.body;
       
@@ -217,5 +225,5 @@ export class UserController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 } 

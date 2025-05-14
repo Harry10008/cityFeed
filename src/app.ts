@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler';
 import { logError } from './utils/logger';
 import connectDB from './config/database';
+import reviewRoutes from './routes/review.routes';
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +39,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Error handling
 app.use(errorHandler);

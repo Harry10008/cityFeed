@@ -36,7 +36,7 @@ router.post(
 // Phone update routes (with rate limiting)
 router.post(
   '/profile/phone/initiate',
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 3 }), // 3 attempts per 15 minutes
+  // rateLimit({ windowMs: 15 * 60 * 1000, max: 3 }), // 3 attempts per 15 minutes
   userController.initiateMobileUpdate
 );
 router.post(

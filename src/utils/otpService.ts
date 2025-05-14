@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { redisClient } from '../config/redis';
-import { sendVerificationEmail } from './emailService';
+import { sendOTPEmail } from './emailService';
 import { SMSService } from './smsService';
 import { AppError } from './appError';
 
@@ -47,15 +47,22 @@ export class OTPService {
     const otp = await this.generateAndStoreOTP(type, userId);
     
     if (type === 'email') {
-      // Use existing email service to send OTP
-      await sendVerificationEmail(contact, otp, 'otp');
+      await sendOTPEmail(contact, otp, 'email_update');
     } else {
       // Validate phone number before sending
       if (!SMSService.validatePhoneNumber(contact)) {
         throw new AppError('Invalid phone number format', 400);
       }
-      // Use SMS service to send OTP
-      await SMSService.sendOTP(contact, otp);
+      
+      try {
+        await SMSService.sendOTP(contact, otp);
+      } catch (error: any) {
+        // In development mode, log the OTP for testing
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEV MODE] SMS OTP for ${contact}: ${otp}`);
+        }
+        throw error;
+      }
     }
   }
 } 

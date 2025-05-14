@@ -25,6 +25,7 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       required: [true, 'Please provide your phone number'],
+      unique: true,
       trim: true
     },
     address: {

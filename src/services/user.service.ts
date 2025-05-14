@@ -6,6 +6,7 @@ import { IUser } from '../interfaces/user.interface';
 import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService'; // adjust import path
 import { OTPService } from '../utils/otpService';
 import { SMSService } from '../utils/smsService';
+import { User } from '../models/user.model';
 
 type CreateUserWithDateDob = Omit<CreateUserDtoType, 'dob'> & { dob: Date };
 
@@ -17,39 +18,59 @@ export class UserService {
   }
 
   async register(data: CreateUserDtoType): Promise<{ user: IUser; token: string }> {
-    const existingUser = await this.userRepository.findByEmail(data.email);
-    if (existingUser) {
-      throw new AppError('Email already registered', 400);
+    try {
+      // Check if email already exists
+      const existingEmailUser = await User.findOne({ email: data.email });
+      if (existingEmailUser) {
+        throw new AppError('Email already registered', 400);
+      }
+
+      // Check if phone already exists
+      const existingPhoneUser = await User.findOne({ phone: data.phone });
+      if (existingPhoneUser) {
+        throw new AppError('Phone number already registered', 400);
+      }
+
+      const { dob, ...rest } = data;
+    
+      // Convert 'dd/mm/yyyy' to a valid Date object
+      const [day, month, year] = dob.split('/');
+      const dobAsDate = new Date(`${year}-${month}-${day}`);
+    
+      // Validate date
+      if (isNaN(dobAsDate.getTime())) {
+        throw new AppError('Invalid date of birth format', 400);
+      }
+    
+      // Build the user data with dob as Date
+      const userPayload: CreateUserWithDateDob = {
+        ...rest,
+        dob: dobAsDate,
+      };
+    
+      // Create user
+      const user = await this.userRepository.create(userPayload);
+    
+      // Generate tokens
+      const token = this.generateToken(user);
+      const verificationToken = generateVerificationToken(user._id.toString(), user.role);
+    
+      // Send verification email
+      await sendVerificationEmail(user.email, verificationToken, user.role);
+    
+      return { user, token };
+    } catch (error) {
+      // Handle mongoose duplicate key error
+      if (error.code === 11000) {
+        if (error.keyPattern?.email) {
+          throw new AppError('Email already registered', 400);
+        }
+        if (error.keyPattern?.phone) {
+          throw new AppError('Phone number already registered', 400);
+        }
+      }
+      throw error;
     }
-  
-    const { dob, ...rest } = data;
-  
-    // Convert 'dd/mm/yyyy' to a valid Date object
-    const [day, month, year] = dob.split('/');
-    const dobAsDate = new Date(`${year}-${month}-${day}`);
-  
-    // Validate date
-    if (isNaN(dobAsDate.getTime())) {
-      throw new AppError('Invalid date of birth format', 400);
-    }
-  
-    // Build the user data with dob as Date
-    const userPayload: CreateUserWithDateDob = {
-      ...rest,
-      dob: dobAsDate,
-    };
-  
-    // Create user
-    const user = await this.userRepository.create(userPayload);
-  
-    // Generate tokens
-    const token = this.generateToken(user);
-    const verificationToken = generateVerificationToken(user._id.toString(), user.role);
-  
-    // Send verification email
-    await sendVerificationEmail(user.email, verificationToken, user.role);
-  
-    return { user, token };
   }
   async login(data: LoginUserDtoType): Promise<{ user: IUser; token: string }> {
     // Find user by email
@@ -144,7 +165,19 @@ export class UserService {
       throw new AppError('Mobile number already registered', 400);
     }
 
-    await OTPService.sendOTP('mobile', userId, newMobile);
+    try {
+      await OTPService.sendOTP('mobile', userId, newMobile);
+    } catch (error: any) {
+      // Handle SMS-specific errors
+      if (error.message.includes('region') || error.message.includes('geographic')) {
+        // In development, log the error but continue
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEV MODE] SMS failed for ${newMobile}. Check logs for OTP.`);
+          return;
+        }
+      }
+      throw error;
+    }
   }
 
   async verifyAndUpdateMobile(userId: string, newMobile: string, otp: string): Promise<IUser> {
