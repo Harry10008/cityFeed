@@ -40,6 +40,15 @@ export class MerchantService {
       throw new AppError('Invalid credentials', 401);
     }
 
+    // Check if merchant email is verified
+    if (!merchant.isVerified) {
+      // Resend verification email
+      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
+      await sendVerificationEmail(merchant.email, verificationToken, merchant.role);
+      
+      throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
+    }
+
     // Check password
     const isPasswordValid = await merchant.comparePassword(data.password);
     if (!isPasswordValid) {
@@ -89,6 +98,11 @@ export class MerchantService {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
+    }
+    
+    // Check if merchant's email is verified
+    if (!merchant.isVerified) {
+      throw new AppError('Please verify your current email before updating to a new one', 400);
     }
 
     // Check if new email is already registered
@@ -161,7 +175,11 @@ export class MerchantService {
   }
 
   private generateToken(merchant: IMerchant): string {
-    const payload = { id: merchant._id, role: merchant.role };
+    const payload = { 
+      id: merchant._id, 
+      role: merchant.role,
+      isVerified: merchant.isVerified
+    };
     const secret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
     const options: SignOptions = { expiresIn: '7d' };
     

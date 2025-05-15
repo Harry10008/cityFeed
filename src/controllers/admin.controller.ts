@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminService } from '../services/admin.service';
-import { CreateAdminDto, UpdateAdminDto } from '../dto/admin.dto';
+import { CreateAdminDto, EmailUpdateDto, UpdateAdminDto, VerifyEmailDto } from '../dto/admin.dto';
 import { AppError } from '../utils/appError';
+import { verifyToken } from '../utils/emailService';
 
 export class AdminController {
   private adminService: AdminService;
@@ -20,10 +21,36 @@ export class AdminController {
         data: {
           admin,
           token
-        }
+        },
+        message: 'Registration successful. Please check your email to verify your account.'
       });
     } catch (error) {
       next(error);
+    }
+  };
+
+  verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') {
+        throw new AppError('Verification token is required', 400);
+      }
+  
+      // Verify the token
+      const { userId } = verifyToken(token);
+  
+      // Update admin verification status
+      const admin = await this.adminService.verifyAdmin(userId);
+      
+      return res.status(200).json({
+        status: 'success',
+        message: 'Email verified successfully',
+        data: {
+          admin
+        }
+      });
+    } catch (error) {
+      return next(error);
     }
   };
 
@@ -61,6 +88,14 @@ export class AdminController {
 
   updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Check if trying to update email
+      if ('email' in req.body) {
+        throw new AppError(
+          'Email cannot be updated through this endpoint. Please use /profile/email/initiate',
+          400
+        );
+      }
+      
       const updateData = UpdateAdminDto.parse(req.body);
       const admin = await this.adminService.updateProfile(req.user._id, updateData);
       
@@ -72,6 +107,39 @@ export class AdminController {
       });
     } catch (error) {
       next(error);
+    }
+  };
+
+  initiateEmailUpdate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { newEmail } = EmailUpdateDto.parse(req.body);
+      
+      await this.adminService.initiateEmailUpdate(req.user._id, newEmail);
+      
+      return res.status(200).json({
+        status: 'success',
+        message: 'OTP sent to new email address. Please check your email and verify within 10 minutes.'
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+  
+  verifyAndUpdateEmail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { newEmail, otp } = VerifyEmailDto.parse(req.body);
+      
+      const admin = await this.adminService.verifyAndUpdateEmail(req.user._id, newEmail, otp);
+      
+      return res.status(200).json({
+        status: 'success',
+        message: 'Email updated successfully',
+        data: {
+          admin
+        }
+      });
+    } catch (error) {
+      return next(error);
     }
   };
 

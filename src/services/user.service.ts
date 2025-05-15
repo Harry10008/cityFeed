@@ -72,11 +72,21 @@ export class UserService {
       throw error;
     }
   }
+  
   async login(data: LoginUserDtoType): Promise<{ user: IUser; token: string }> {
     // Find user by email
     const user = await this.userRepository.findByEmail(data.email);
     if (!user) {
       throw new AppError('Invalid credentials', 401);
+    }
+
+    // Check if email is verified
+    if (!user.isVerified) {
+      // Resend verification email
+      const verificationToken = generateVerificationToken(user._id.toString(), user.role);
+      await sendVerificationEmail(user.email, verificationToken, user.role);
+      
+      throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
     }
 
     // Check password
@@ -114,10 +124,13 @@ export class UserService {
     }
     return user;
   }
-  
 
   private generateToken(user: IUser): string {
-    const payload = { id: user._id, role: user.role };
+    const payload = { 
+      id: user._id, 
+      role: user.role,
+      isVerified: user.isVerified 
+    };
     const secret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
     const options: SignOptions = { expiresIn: '7d' };
     
@@ -125,14 +138,34 @@ export class UserService {
   }
 
   async verifyUser(userId: string): Promise<IUser> {
-    const user = await this.userRepository.verifyUser(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new AppError('User not found', 404);
     }
+    
+    if (user.isVerified) {
+      throw new AppError('Email already verified', 400);
+    }
+    
+    user.isVerified = true;
+    await user.save();
+    
     return user;
   }
   
   async initiateEmailUpdate(userId: string, newEmail: string): Promise<void> {
+    // Check if user exists and is verified
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Check if user's email is verified
+    if (!user.isVerified) {
+      throw new AppError('Please verify your current email before updating to a new one', 400);
+    }
+    
+    // Check if new email is already registered
     const existingUser = await this.userRepository.findByEmail(newEmail);
     if (existingUser) {
       throw new AppError('Email already registered', 400);
@@ -155,6 +188,17 @@ export class UserService {
   }
 
   async initiateMobileUpdate(userId: string, newMobile: string): Promise<void> {
+    // Check if user exists and is verified
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Check if user's email is verified
+    if (!user.isVerified) {
+      throw new AppError('Please verify your email before updating your phone number', 400);
+    }
+    
     // Validate phone number format
     if (!SMSService.validatePhoneNumber(newMobile)) {
       throw new AppError('Invalid phone number format', 400);

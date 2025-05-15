@@ -40,6 +40,14 @@ const adminSchema = new Schema<IAdmin>(
       type: Boolean,
       default: true
     },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    profileImage: {
+      type: String,
+      default: '/uploads/admins/default-profile.png'
+    },
     role: {
       type: String,
       enum: ['admin'],
