@@ -27,11 +27,6 @@ const merchantSchema = new Schema<IMerchant>(
       required: [true, 'Please provide your phone number'],
       trim: true
     },
-    address: {
-      type: String,
-      required: [true, 'Please provide your address'],
-      trim: true
-    },
     businessName: {
       type: String,
       required: [true, 'Please provide your business name'],
@@ -47,9 +42,28 @@ const merchantSchema = new Schema<IMerchant>(
       required: [true, 'Please provide your business address'],
       trim: true
     },
+    foodPreference: {
+      type: String,
+      enum: ['veg', 'nonveg', 'both'],
+      required: [true, 'Please select food preference']
+    },
+    images: {
+      type: [String],
+      required: [true, 'Please upload at least 2 images'],
+      validate: {
+        validator: function(images: string[]) {
+          return images.length >= 2 && images.length <= 5;
+        },
+        message: 'Please upload between 2 and 5 images'
+      }
+    },
     isActive: {
       type: Boolean,
       default: true
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
     },
     role: {
       type: String,

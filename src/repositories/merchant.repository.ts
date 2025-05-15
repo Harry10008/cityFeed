@@ -48,7 +48,7 @@ export class MerchantRepository {
 
   async findAll(): Promise<IMerchant[]> {
     try {
-      return await Merchant.find();
+      return await Merchant.find({ isVerified: true });
     } catch (error) {
       throw new AppError('Error finding merchants', 500);
     }
@@ -56,9 +56,38 @@ export class MerchantRepository {
 
   async findByCategory(category: string): Promise<IMerchant[]> {
     try {
-      return await Merchant.find({ category });
+      return await Merchant.find({ 
+        businessType: category,
+        isVerified: true 
+      });
     } catch (error) {
       throw new AppError('Error finding merchants by category', 500);
+    }
+  }
+  
+  async findByCategoryAndFoodPreference(
+    category: string, 
+    foodPreference: 'veg' | 'nonveg' | 'both'
+  ): Promise<IMerchant[]> {
+    try {
+      return await Merchant.find({ 
+        businessType: category,
+        foodPreference,
+        isVerified: true
+      });
+    } catch (error) {
+      throw new AppError('Error finding merchants by category and food preference', 500);
+    }
+  }
+  
+  async findByFoodPreference(foodPreference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
+    try {
+      return await Merchant.find({ 
+        foodPreference,
+        isVerified: true
+      });
+    } catch (error) {
+      throw new AppError('Error finding merchants by food preference', 500);
     }
   }
 
