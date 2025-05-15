@@ -61,8 +61,10 @@ const userSchema = new Schema<IUser>(
       type: Date,
       required: [true, 'Please provide your date of birth']
     },
-    
-    
+    profileImage: {
+      type: String,
+      default: '/uploads/users/default-profile.png'
+    }
   },
   {
     timestamps: true

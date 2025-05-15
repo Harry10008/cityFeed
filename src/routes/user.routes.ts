@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { protect } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
+import { uploadUserProfileImage, updateUserProfileImage } from '../middleware/upload.middleware';
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from '../dto/user.dto';
 //import { rateLimit } from '../middleware/rateLimit';
 
@@ -9,7 +10,7 @@ const router = Router();
 const userController = new UserController();
 
 // Public routes
-router.post('/register', validate(CreateUserDto), userController.register);
+router.post('/register', uploadUserProfileImage, validate(CreateUserDto), userController.register);
 router.post('/login', validate(LoginUserDto), userController.login);
 router.get('/verify-email', userController.verifyEmail);
 
@@ -18,8 +19,9 @@ router.use(protect);
 
 // Profile routes
 router.get('/profile', userController.getProfile);
-router.patch('/profile', validate(UpdateUserDto), userController.updateProfile);
+router.patch('/profile', updateUserProfileImage, validate(UpdateUserDto), userController.updateProfile);
 router.patch('/profile/membership', userController.updateMembershipType);
+router.patch('/profile/image', updateUserProfileImage, userController.updateProfileImage);
 
 // Email update routes (with rate limiting)
 router.post(

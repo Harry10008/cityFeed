@@ -4,10 +4,28 @@ import path from 'path';
 import fs from 'fs';
 import { AppError } from '../utils/appError';
 
-// Set storage engine
-const storage = multer.diskStorage({
+// Set storage engine for merchant images
+const merchantStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads/merchants');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    // Create unique filename: timestamp + original name
+    cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`);
+  }
+});
+
+// Set storage engine for user profile images
+const userStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/users');
     
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
@@ -36,16 +54,23 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
   cb(new Error('Only image files (jpeg, jpg, png, webp) are allowed'));
 };
 
-// Initialize upload
-const upload = multer({
-  storage,
+// Initialize upload for merchants
+const merchantUpload = multer({
+  storage: merchantStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max file size
+  fileFilter
+});
+
+// Initialize upload for users
+const userUpload = multer({
+  storage: userStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max file size
   fileFilter
 });
 
 // Middleware for merchant images upload (2-5 images)
 export const uploadMerchantImages = (req: Request, res: Response, next: NextFunction) => {
-  const merchantImagesUpload = upload.array('images', 5);
+  const merchantImagesUpload = merchantUpload.array('images', 5);
   
   merchantImagesUpload(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -81,7 +106,7 @@ export const updateMerchantImages = (req: Request, res: Response, next: NextFunc
     return next();
   }
   
-  const merchantImagesUpload = upload.array('images', 5);
+  const merchantImagesUpload = merchantUpload.array('images', 5);
   
   merchantImagesUpload(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -106,6 +131,57 @@ export const updateMerchantImages = (req: Request, res: Response, next: NextFunc
       req.body.images = (req.files as Express.Multer.File[]).map(
         file => `/uploads/merchants/${file.filename}`
       );
+    }
+    
+    next();
+  });
+};
+
+// Middleware for user profile image upload
+export const uploadUserProfileImage = (req: Request, res: Response, next: NextFunction) => {
+  const profileImageUpload = userUpload.single('profileImage');
+  
+  profileImageUpload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return next(new AppError('Image size should be less than 2MB', 400));
+      }
+      return next(new AppError(err.message, 400));
+    } else if (err) {
+      return next(new AppError(err.message, 400));
+    }
+    
+    // If a file was uploaded, add the path to the request body
+    if (req.file) {
+      req.body.profileImage = `/uploads/users/${req.file.filename}`;
+    }
+    
+    next();
+  });
+};
+
+// Middleware for updating user profile image (optional update)
+export const updateUserProfileImage = (req: Request, res: Response, next: NextFunction) => {
+  // If no file upload is in the request, just continue
+  if (!req.file) {
+    return next();
+  }
+  
+  const profileImageUpload = userUpload.single('profileImage');
+  
+  profileImageUpload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return next(new AppError('Image size should be less than 2MB', 400));
+      }
+      return next(new AppError(err.message, 400));
+    } else if (err) {
+      return next(new AppError(err.message, 400));
+    }
+    
+    // If a file was uploaded, add the path to the request body
+    if (req.file) {
+      req.body.profileImage = `/uploads/users/${req.file.filename}`;
     }
     
     next();

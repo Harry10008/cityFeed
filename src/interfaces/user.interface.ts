@@ -10,8 +10,9 @@ export interface IUser extends Document {
   membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum';
   isActive: boolean;
   role: 'user' | 'admin' | 'merchant';
-  dob:Date;
+  dob: Date;
   isVerified: boolean;
+  profileImage: string; // Path to profile image
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;

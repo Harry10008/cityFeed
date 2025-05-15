@@ -119,6 +119,28 @@ export class UserController {
     }
   };
   
+  updateProfileImage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // If no image was uploaded, return an error
+      if (!req.file && !req.body.profileImage) {
+        throw new AppError('No profile image provided', 400);
+      }
+      
+      // Profile image path is added to req.body by the upload middleware
+      const user = await this.userService.updateProfile(req.user._id, { 
+        profileImage: req.body.profileImage 
+      });
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Profile image updated successfully',
+        data: { user }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+  
   updateMembershipType = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { membershipType } = req.body;

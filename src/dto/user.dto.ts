@@ -17,6 +17,7 @@ export const CreateUserDto = z.object({
     /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/,
     'Date of birth must be in dd/mm/yyyy format'
   ),
+  profileImage: z.string().optional()
 });
 
 export const UpdateUserDto = CreateUserDto.partial();
@@ -36,6 +37,7 @@ export const UserResponseDto = z.object({
   membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']),
   isActive: z.boolean(),
   role: z.literal('user'),
+  profileImage: z.string(),
   createdAt: z.date()
 });
 
