@@ -23,7 +23,7 @@ export class MerchantRepository {
 
   async findByEmail(email: string): Promise<IMerchant | null> {
     try {
-      return await Merchant.findOne({ email });
+      return await Merchant.findOne({ email }).select('+password');
     } catch (error) {
       throw new AppError('Error finding merchant', 500);
     }
