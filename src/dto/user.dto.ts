@@ -15,10 +15,21 @@ export const CreateUserDto = z.object({
     errorMap: () => ({ message: 'Gender must be M, F, or O' })
   }),
   dob: z.string().transform((str) => {
-    const date = new Date(str);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date format. Please use MM/DD/YYYY');
+    // Check if the string matches dd/mm/yyyy format
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = str.match(dateRegex);
+    
+    if (!match) {
+      throw new Error('Invalid date format. Please use DD/MM/YYYY');
     }
+
+    const [_, day, month, year] = match;
+    const date = new Date(`${year}-${month}-${day}`);
+    
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date. Please provide a valid date');
+    }
+
     return date;
   }),
   profileImage: z.string().optional(),
@@ -33,10 +44,21 @@ export const UpdateUserDto = z.object({
   address: z.string().min(5, 'Address must be at least 5 characters').optional(),
   gender: z.enum(['M', 'F', 'O']).optional(),
   dob: z.string().transform((str) => {
-    const date = new Date(str);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date format. Please use MM/DD/YYYY');
+    // Check if the string matches dd/mm/yyyy format
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = str.match(dateRegex);
+    
+    if (!match) {
+      throw new Error('Invalid date format. Please use DD/MM/YYYY');
     }
+
+    const [_, day, month, year] = match;
+    const date = new Date(`${year}-${month}-${day}`);
+    
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date. Please provide a valid date');
+    }
+
     return date;
   }).optional(),
   profileImage: z.string().optional(),

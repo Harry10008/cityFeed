@@ -57,6 +57,11 @@ export class UserService {
         throw new AppError('Invalid credentials', 401);
       }
 
+      // Check if user is verified
+      if (!user.isVerified) {
+        throw new AppError('Please verify your email before logging in', 401);
+      }
+
       // Generate JWT token
       const token = this.generateToken(user);
 
