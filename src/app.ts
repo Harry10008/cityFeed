@@ -4,9 +4,11 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './middleware/errorHandler';
 import { logError } from './utils/logger';
 import connectDB from './config/database';
+import { swaggerSpec } from './config/swagger';
 import reviewRoutes from './routes/review.routes';
 
 // Load environment variables
@@ -32,6 +34,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
