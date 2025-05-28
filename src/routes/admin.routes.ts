@@ -3,7 +3,7 @@ import { AdminController } from '../controllers/admin.controller';
 import { protect, restrictTo } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { CreateAdminDto, EmailUpdateDto, LoginAdminDto, UpdateAdminDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/admin.dto';
-import { validateRequest } from '../middleware/validateRequest';
+//import { validateRequest } from '../middleware/validateRequest';
 import { authenticateAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -31,28 +31,93 @@ const adminController = new AdminController();
  *             required:
  *               - email
  *               - password
- *               - name
- *               - role
+ *               - fullName
+ *               - phone
+ *               - address
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
+ *                 description: Admin's email address
  *               password:
  *                 type: string
  *                 minLength: 6
- *               name:
+ *                 description: Password (minimum 6 characters)
+ *               fullName:
  *                 type: string
  *                 minLength: 2
+ *                 description: Admin's full name
+ *               phone:
+ *                 type: string
+ *                 minLength: 10
+ *                 description: Phone number (minimum 10 digits)
+ *               address:
+ *                 type: string
+ *                 minLength: 5
+ *                 description: Admin's address
  *               role:
  *                 type: string
  *                 enum: [admin, super_admin]
+ *                 default: admin
+ *                 description: Admin role
+ *               permissions:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: List of admin permissions
+ *               isActive:
+ *                 type: boolean
+ *                 default: true
+ *                 description: Whether the admin account is active
+ *               isVerified:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Whether the admin email is verified
+ *               profileImage:
+ *                 type: string
+ *                 description: URL to admin's profile image
  *     responses:
  *       201:
  *         description: Admin registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     admin:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         fullName:
+ *                           type: string
+ *                         role:
+ *                           type: string
+ *                     token:
+ *                       type: string
  *       400:
  *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Validation error
  */
-router.post('/register', validateRequest(CreateAdminDto), adminController.register);
+router.post('/register', validate(CreateAdminDto), adminController.register);
 
 /**
  * @swagger
@@ -81,7 +146,7 @@ router.post('/register', validateRequest(CreateAdminDto), adminController.regist
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validateRequest(LoginAdminDto), adminController.login);
+router.post('/login', validate(LoginAdminDto), adminController.login);
 
 /**
  * @swagger
@@ -107,7 +172,7 @@ router.post('/login', validateRequest(LoginAdminDto), adminController.login);
  *       404:
  *         description: Admin not found
  */
-router.post('/forgot-password', validateRequest(ForgotPasswordDto), adminController.forgotPassword);
+router.post('/forgot-password', validate(ForgotPasswordDto), adminController.forgotPassword);
 
 /**
  * @swagger
@@ -136,7 +201,7 @@ router.post('/forgot-password', validateRequest(ForgotPasswordDto), adminControl
  *       400:
  *         description: Invalid or expired token
  */
-router.post('/reset-password', validateRequest(ResetPasswordDto), adminController.resetPassword);
+router.post('/reset-password', validate(ResetPasswordDto), adminController.resetPassword);
 
 /**
  * @swagger
@@ -168,7 +233,50 @@ router.post('/reset-password', validateRequest(ResetPasswordDto), adminControlle
  *       401:
  *         description: Unauthorized - Invalid current password
  */
-router.post('/change-password', authenticateAdmin, validateRequest(ChangePasswordDto), adminController.changePassword);
+router.post('/change-password', authenticateAdmin, validate(ChangePasswordDto), adminController.changePassword);
+
+/**
+ * @swagger
+ * /api/admins/verify-email:
+ *   get:
+ *     summary: Verify admin email
+ *     tags: [Admins]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token received in email
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Email verified successfully
+ *       400:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Invalid or expired token
+ */
+router.get('/verify-email', adminController.verifyEmail);
 
 // Protected routes
 router.use(protect);

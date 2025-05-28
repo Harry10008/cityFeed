@@ -6,6 +6,7 @@ import { IAdmin } from '../interfaces/admin.interface';
 import { OTPService } from '../utils/otpService';
 import { Admin } from '../models/admin.model';
 import bcrypt from 'bcryptjs';
+import { sendVerificationEmail } from '../utils/emailService';
 
 export class AdminService {
   private adminRepository: AdminRepository;
@@ -30,8 +31,23 @@ export class AdminService {
         ...data,
         password: hashedPassword
       });
+
+      // Generate verification token
+      const verificationToken = jwt.sign(
+        { id: admin._id, email: admin.email, role: admin.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+      
+      // Send verification email
+      try {
+        await sendVerificationEmail(admin.email, verificationToken);
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+        // Don't throw error here, just log it. Admin can request verification email later
+      }
     
-      // Generate token
+      // Generate login token
       const token = this.generateToken(admin);
     
       return { admin, token };

@@ -2,11 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { AdminService } from '../services/admin.service';
 import { CreateAdminDto, EmailUpdateDto, UpdateAdminDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/admin.dto';
 import { AppError } from '../utils/appError';
-import { verifyToken } from '../utils/emailService';
+//import { verifyToken } from '../utils/emailService';
 import { AuthRequest } from '../middleware/auth';
 import { config } from '../config';
 import { sendEmail } from '../utils/email';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 export class AdminController {
   private adminService: AdminService;
@@ -33,28 +34,38 @@ export class AdminController {
     }
   };
 
-  verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+  verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { token } = req.query;
-      if (!token || typeof token !== 'string') {
-        throw new AppError('Verification token is required', 400);
-      }
-  
-      // Verify the token
-      const { userId } = verifyToken(token);
-  
-      // Update admin verification status
-      const admin = await this.adminService.verifyAdmin(userId);
       
-      return res.status(200).json({
+      if (!token || typeof token !== 'string') {
+        throw new AppError('Invalid verification token', 400);
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as {
+        id: string;
+        email: string;
+        role: string;
+      };
+
+      // Verify admin
+      const admin = await this.adminService.verifyAdmin(decoded.id);
+
+      res.status(200).json({
         status: 'success',
         message: 'Email verified successfully',
         data: {
-          admin
+          admin: {
+            id: admin._id,
+            email: admin.email,
+            fullName: admin.fullName,
+            role: admin.role
+          }
         }
       });
     } catch (error) {
-      return next(error);
+      next(error);
     }
   };
 

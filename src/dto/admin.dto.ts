@@ -4,15 +4,27 @@ import { z } from 'zod';
 export const CreateAdminDto = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  role: z.enum(['admin', 'super_admin'])
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  address: z.string().min(5, 'Address must be at least 5 characters'),
+  role: z.enum(['admin', 'super_admin']).default('admin'),
+  permissions: z.array(z.string()).optional(),
+  isActive: z.boolean().default(true),
+  isVerified: z.boolean().default(false),
+  profileImage: z.string().optional()
 });
 
 export const UpdateAdminDto = z.object({
   email: z.string().email('Invalid email format').optional(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
+  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
   role: z.enum(['admin', 'super_admin']).optional(),
+  permissions: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+  profileImage: z.string().optional(),
   resetToken: z.string().optional(),
   resetTokenExpires: z.date().optional()
 });
