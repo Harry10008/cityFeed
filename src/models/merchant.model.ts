@@ -69,7 +69,15 @@ const merchantSchema = new Schema<IMerchant>(
       type: String,
       enum: ['merchant'],
       default: 'merchant'
-    }
+    },
+    resetToken: {
+      type: String,
+      allowNull: true,
+    },
+    resetTokenExpires: {
+      type: Date,
+      allowNull: true,
+    },
   },
   {
     timestamps: true

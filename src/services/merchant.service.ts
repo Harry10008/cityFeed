@@ -1,10 +1,12 @@
 import { MerchantRepository } from '../repositories/merchant.repository';
-import { CreateMerchantDtoType, UpdateMerchantDtoType } from '../dto/merchant.dto';
+import { CreateMerchantDtoType, UpdateMerchantDtoType, LoginMerchantDtoType } from '../dto/merchant.dto';
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IMerchant } from '../interfaces/merchant.interface';
 import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService';
 import { OTPService } from '../utils/otpService';
+import { Merchant } from '../models/merchant.model';
+import bcrypt from 'bcryptjs';
 
 export class MerchantService {
   private merchantRepository: MerchantRepository;
@@ -14,33 +16,43 @@ export class MerchantService {
   }
 
   async register(data: CreateMerchantDtoType): Promise<{ merchant: IMerchant; token: string }> {
-    // Check if merchant already exists
-    const existingMerchant = await this.merchantRepository.findByEmail(data.email);
-    if (existingMerchant) {
-      throw new AppError('Email already registered', 400);
+    try {
+      // Check if email already exists
+      const existingEmailMerchant = await Merchant.findOne({ email: data.email });
+      if (existingEmailMerchant) {
+        throw new AppError('Email already registered', 400);
+      }
+
+      // Create merchant
+      const merchant = await this.merchantRepository.create(data);
+    
+      // Generate tokens
+      const token = this.generateToken(merchant);
+      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
+    
+      // Send verification email
+      await sendVerificationEmail(merchant.email, verificationToken, merchant.role);
+    
+      return { merchant, token };
+    } catch (error) {
+      // Handle mongoose duplicate key error
+      if (error.code === 11000) {
+        if (error.keyPattern?.email) {
+          throw new AppError('Email already registered', 400);
+        }
+      }
+      throw error;
     }
-
-    // Create new merchant
-    const merchant = await this.merchantRepository.create(data);
-
-    // Generate JWT token
-    const token = this.generateToken(merchant);
-
-    // Send verification email
-    const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
-    await sendVerificationEmail(merchant.email, verificationToken, merchant.role);
-
-    return { merchant, token };
   }
 
-  async login(data: { email: string; password: string }): Promise<{ merchant: IMerchant; token: string }> {
+  async login(data: LoginMerchantDtoType): Promise<{ merchant: IMerchant; token: string }> {
     // Find merchant by email
     const merchant = await this.merchantRepository.findByEmail(data.email);
     if (!merchant) {
       throw new AppError('Invalid credentials', 401);
     }
 
-    // Check if merchant email is verified
+    // Check if email is verified
     if (!merchant.isVerified) {
       // Resend verification email
       const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
@@ -77,16 +89,28 @@ export class MerchantService {
     return merchant;
   }
 
+  private generateToken(merchant: IMerchant): string {
+    const payload = { 
+      id: merchant._id, 
+      role: merchant.role,
+      isVerified: merchant.isVerified 
+    };
+    const secret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+    const options: SignOptions = { expiresIn: '7d' };
+    
+    return jwt.sign(payload, secret, options);
+  }
+
   async verifyMerchant(merchantId: string): Promise<IMerchant> {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
-
+    
     if (merchant.isVerified) {
-      throw new AppError('Merchant is already verified', 400);
+      throw new AppError('Email already verified', 400);
     }
-
+    
     merchant.isVerified = true;
     await merchant.save();
     
@@ -94,7 +118,7 @@ export class MerchantService {
   }
 
   async initiateEmailUpdate(merchantId: string, newEmail: string): Promise<void> {
-    // Check if merchant exists
+    // Check if merchant exists and is verified
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
@@ -104,85 +128,122 @@ export class MerchantService {
     if (!merchant.isVerified) {
       throw new AppError('Please verify your current email before updating to a new one', 400);
     }
-
+    
     // Check if new email is already registered
     const existingMerchant = await this.merchantRepository.findByEmail(newEmail);
     if (existingMerchant) {
       throw new AppError('Email already registered', 400);
     }
 
-    // Send OTP to the new email
     await OTPService.sendOTP('email', merchantId, newEmail);
   }
 
   async verifyAndUpdateEmail(merchantId: string, newEmail: string, otp: string): Promise<IMerchant> {
-    // Check if merchant exists
-    const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) {
-      throw new AppError('Merchant not found', 404);
-    }
-
-    // Verify OTP
     const isValid = await OTPService.verifyOTP('email', merchantId, otp);
     if (!isValid) {
       throw new AppError('Invalid or expired OTP', 400);
     }
 
-    // Update email
-    const updatedMerchant = await this.merchantRepository.update(merchantId, { email: newEmail });
-    if (!updatedMerchant) {
-      throw new AppError('Failed to update email', 500);
-    }
-
-    return updatedMerchant;
-  }
-
-  async updateVerificationStatus(merchantId: string, isVerified: boolean): Promise<IMerchant> {
-    const merchant = await this.merchantRepository.updateVerificationStatus(merchantId, isVerified);
+    const merchant = await this.merchantRepository.update(merchantId, { email: newEmail });
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
     return merchant;
   }
 
+  async create(data: CreateMerchantDtoType): Promise<IMerchant> {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    return Merchant.create({ ...data, password: hashedPassword });
+  }
+
+  async findByEmail(email: string): Promise<IMerchant | null> {
+    return Merchant.findOne({ email }).select('+password');
+  }
+
+  async findById(id: string): Promise<IMerchant | null> {
+    return Merchant.findById(id).select('+password');
+  }
+
+  async findByResetToken(token: string): Promise<IMerchant | null> {
+    return Merchant.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: new Date() }
+    }).select('+password');
+  }
+
+  async update(id: string, data: Partial<UpdateMerchantDtoType>): Promise<IMerchant | null> {
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    return Merchant.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  }
+
+  async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
   async getAllMerchants(): Promise<IMerchant[]> {
-    return await this.merchantRepository.findAll();
+    try {
+      return await Merchant.find({ isActive: true })
+        .select('-password -resetToken -resetTokenExpires')
+        .sort({ createdAt: -1 });
+    } catch (error) {
+      throw new AppError('Error fetching merchants', 500);
+    }
   }
 
   async getMerchantsByCategory(category: string): Promise<IMerchant[]> {
-    return await this.merchantRepository.findByCategory(category);
+    try {
+      return await Merchant.find({ 
+        category,
+        isActive: true 
+      })
+        .select('-password -resetToken -resetTokenExpires')
+        .sort({ createdAt: -1 });
+    } catch (error) {
+      throw new AppError('Error fetching merchants by category', 500);
+    }
   }
 
   async getMerchantsByFoodPreference(foodPreference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
-    // Validate food preference
-    if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
-      throw new AppError('Invalid food preference', 400);
+    try {
+      // Validate food preference
+      if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
+        throw new AppError('Invalid food preference', 400);
+      }
+
+      return await Merchant.find({ 
+        foodPreference,
+        isActive: true 
+      })
+        .select('-password -resetToken -resetTokenExpires')
+        .sort({ createdAt: -1 });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Error fetching merchants by food preference', 500);
     }
-    
-    return await this.merchantRepository.findByFoodPreference(foodPreference);
   }
 
   async getMerchantsByCategoryAndFoodPreference(
-    category: string, 
+    category: string,
     foodPreference: 'veg' | 'nonveg' | 'both'
   ): Promise<IMerchant[]> {
-    // Validate food preference
-    if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
-      throw new AppError('Invalid food preference', 400);
-    }
-    
-    return await this.merchantRepository.findByCategoryAndFoodPreference(category, foodPreference);
-  }
+    try {
+      // Validate food preference
+      if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
+        throw new AppError('Invalid food preference', 400);
+      }
 
-  private generateToken(merchant: IMerchant): string {
-    const payload = { 
-      id: merchant._id, 
-      role: merchant.role,
-      isVerified: merchant.isVerified
-    };
-    const secret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
-    const options: SignOptions = { expiresIn: '7d' };
-    
-    return jwt.sign(payload, secret, options);
+      return await Merchant.find({ 
+        category,
+        foodPreference,
+        isActive: true 
+      })
+        .select('-password -resetToken -resetTokenExpires')
+        .sort({ createdAt: -1 });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Error fetching merchants by category and food preference', 500);
+    }
   }
 } 

@@ -3,12 +3,17 @@ import { CreateUserDtoType, UpdateUserDtoType, LoginUserDtoType } from '../dto/u
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IUser } from '../interfaces/user.interface';
-import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService'; // adjust import path
+import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService';
 import { OTPService } from '../utils/otpService';
 import { SMSService } from '../utils/smsService';
 import { User } from '../models/user.model';
+import bcrypt from 'bcryptjs';
+import { Types } from 'mongoose';
 
-type CreateUserWithDateDob = Omit<CreateUserDtoType, 'dob'> & { dob: Date };
+type CreateUserWithDateDob = Omit<CreateUserDtoType, 'dob' | 'gender'> & { 
+  dob: Date;
+  gender?: 'male' | 'female' | 'other';
+};
 
 export class UserService {
   private userRepository: UserRepository;
@@ -31,7 +36,7 @@ export class UserService {
         throw new AppError('Phone number already registered', 400);
       }
 
-      const { dob, ...rest } = data;
+      const { dob, gender, ...rest } = data;
     
       // Convert 'dd/mm/yyyy' to a valid Date object
       const [day, month, year] = dob.split('/');
@@ -41,11 +46,30 @@ export class UserService {
       if (isNaN(dobAsDate.getTime())) {
         throw new AppError('Invalid date of birth format', 400);
       }
+
+      // Map gender values
+      let mappedGender: 'male' | 'female' | 'other' | undefined;
+      if (gender) {
+        switch (gender) {
+          case 'M':
+            mappedGender = 'male';
+            break;
+          case 'F':
+            mappedGender = 'female';
+            break;
+          case '0':
+            mappedGender = 'other';
+            break;
+          default:
+            mappedGender = undefined;
+        }
+      }
     
       // Build the user data with dob as Date
       const userPayload: CreateUserWithDateDob = {
         ...rest,
         dob: dobAsDate,
+        gender: mappedGender
       };
     
       // Create user
@@ -240,5 +264,36 @@ export class UserService {
       throw new AppError('User not found', 404);
     }
     return user;
+  }
+
+  async create(data: CreateUserDtoType): Promise<IUser> {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    return User.create({ ...data, password: hashedPassword });
+  }
+
+  async findByEmail(email: string): Promise<(IUser & { _id: Types.ObjectId }) | null> {
+    return User.findOne({ email }).select('+password') as Promise<(IUser & { _id: Types.ObjectId }) | null>;
+  }
+
+  async findById(id: string): Promise<(IUser & { _id: Types.ObjectId }) | null> {
+    return User.findById(id).select('+password') as Promise<(IUser & { _id: Types.ObjectId }) | null>;
+  }
+
+  async findByResetToken(token: string): Promise<(IUser & { _id: Types.ObjectId }) | null> {
+    return User.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: new Date() }
+    }).select('+password') as Promise<(IUser & { _id: Types.ObjectId }) | null>;
+  }
+
+  async update(id: string, data: Partial<UpdateUserDtoType>): Promise<(IUser & { _id: Types.ObjectId }) | null> {
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    return User.findByIdAndUpdate(id, data, { new: true, runValidators: true }) as Promise<(IUser & { _id: Types.ObjectId }) | null>;
+  }
+
+  async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, hashedPassword);
   }
 } 

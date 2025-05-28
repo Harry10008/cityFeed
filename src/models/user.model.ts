@@ -16,46 +16,45 @@ const userSchema = new Schema<IUser>(
       lowercase: true,
       trim: true
     },
-    password: {
-      type: String,
-      required: [true, 'Please provide a password'],
-      minlength: 6,
-      select: false
-    },
     phone: {
       type: String,
       required: [true, 'Please provide your phone number'],
       unique: true,
       trim: true
     },
+    password: {
+      type: String,
+      required: [true, 'Please provide a password'],
+      minlength: 6,
+      select: false
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin', 'merchant'],
+      default: 'user'
+    },
+    membershipType: {
+      type: String,
+      enum: ['basic', 'bronze', 'silver', 'gold', 'platinum'],
+      default: 'basic'
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
     address: {
       type: String,
       required: [true, 'Please provide your address'],
       trim: true
     },
-    membershipType: {
-      type: String,
-      enum: ['basic', 'bronze', 'silver', 'gold', 'platinum'],
-      default: 'bronze'
-    },    
-    isActive: {
-      type: Boolean,
-      default: true
-    },
     gender: {
       type: String,
       enum: ['M', 'F', '0'],
-      required: [true, 'Please provide your gender'],
-    },
-    
-    role: {
-      type: String,
-      enum: ['user'],
-      default: 'user'
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
+      required: [true, 'Please provide your gender']
     },
     dob: {
       type: Date,
@@ -64,6 +63,14 @@ const userSchema = new Schema<IUser>(
     profileImage: {
       type: String,
       default: '/uploads/users/default-profile.png'
+    },
+    resetToken: {
+      type: String,
+      select: false
+    },
+    resetTokenExpires: {
+      type: Date,
+      select: false
     }
   },
   {
@@ -82,7 +89,6 @@ userSchema.pre('save', async function (next) {
     next(err as Error);
   }
 });
-
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {

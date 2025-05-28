@@ -52,6 +52,14 @@ const adminSchema = new Schema<IAdmin>(
       type: String,
       enum: ['admin'],
       default: 'admin'
+    },
+    resetToken: {
+      type: String,
+      select: false
+    },
+    resetTokenExpires: {
+      type: Date,
+      select: false
     }
   },
   {

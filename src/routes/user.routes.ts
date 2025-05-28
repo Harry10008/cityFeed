@@ -3,7 +3,14 @@ import { UserController } from '../controllers/user.controller';
 import { protect } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { uploadUserProfileImage, updateUserProfileImage } from '../middleware/upload.middleware';
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from '../dto/user.dto';
+import { 
+  CreateUserDto, 
+  LoginUserDto, 
+  UpdateUserDto, 
+  ForgotPasswordDto, 
+  ResetPasswordDto, 
+  ChangePasswordDto 
+} from '../dto/user.dto';
 //import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
@@ -149,6 +156,98 @@ router.post('/login', validate(LoginUserDto), userController.login);
  *         description: Invalid or expired token
  */
 router.get('/verify-email', userController.verifyEmail);
+
+/**
+ * @swagger
+ * /api/users/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: Password reset email sent successfully
+ *       404:
+ *         description: User not found
+ */
+router.post('/forgot-password', validate(ForgotPasswordDto), userController.forgotPassword);
+
+/**
+ * @swagger
+ * /api/users/reset-password:
+ *   post:
+ *     summary: Reset password using token
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - password
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Password reset token received via email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: New password (minimum 6 characters)
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post('/reset-password', validate(ResetPasswordDto), userController.resetPassword);
+
+/**
+ * @swagger
+ * /api/users/change-password:
+ *   post:
+ *     summary: Change password using current password
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Current password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: New password (minimum 6 characters)
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       401:
+ *         description: Unauthorized - Invalid current password
+ */
+router.post('/change-password', protect, validate(ChangePasswordDto), userController.changePassword);
 
 // Protected routes
 router.use(protect);

@@ -15,4 +15,6 @@ export interface IAdmin extends Document {
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  resetToken?: string;
+  resetTokenExpires?: Date;
 } 

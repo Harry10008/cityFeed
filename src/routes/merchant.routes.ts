@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { MerchantController } from '../controllers/merchant.controller';
 import { protect } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { uploadMerchantImages } from '../middleware/upload.middleware';
-import { CreateMerchantDto, EmailUpdateDto, LoginMerchantDto } from '../dto/merchant.dto';
+import { CreateMerchantDto, EmailUpdateDto, LoginMerchantDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/merchant.dto';
+import { validateRequest } from '../middleware/validateRequest';
+import { authenticateMerchant } from '../middleware/auth';
 
 const router = Router();
 const merchantController = new MerchantController();
@@ -24,7 +25,7 @@ const merchantController = new MerchantController();
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
@@ -38,29 +39,29 @@ const merchantController = new MerchantController();
  *                 format: email
  *               password:
  *                 type: string
- *                 format: password
+ *                 minLength: 6
  *               businessName:
  *                 type: string
+ *                 minLength: 2
  *               category:
  *                 type: string
  *               businessImages:
  *                 type: array
  *                 items:
  *                   type: string
- *                   format: binary
  *     responses:
  *       201:
  *         description: Merchant registered successfully
  *       400:
- *         description: Invalid input data
+ *         description: Validation error
  */
-router.post('/register', uploadMerchantImages, validate(CreateMerchantDto), merchantController.register);
+router.post('/register', validateRequest(CreateMerchantDto), merchantController.register);
 
 /**
  * @swagger
  * /api/merchants/login:
  *   post:
- *     summary: Login merchant
+ *     summary: Login as a merchant
  *     tags: [Merchants]
  *     requestBody:
  *       required: true
@@ -77,21 +78,13 @@ router.post('/register', uploadMerchantImages, validate(CreateMerchantDto), merc
  *                 format: email
  *               password:
  *                 type: string
- *                 format: password
  *     responses:
  *       200:
  *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(LoginMerchantDto), merchantController.login);
+router.post('/login', validateRequest(LoginMerchantDto), merchantController.login);
 
 /**
  * @swagger
@@ -143,6 +136,92 @@ router.get('/verify-email', merchantController.verifyEmail);
  *                     type: string
  */
 router.get('/category/:category', merchantController.getMerchants);
+
+/**
+ * @swagger
+ * /api/merchants/forgot-password:
+ *   post:
+ *     tags: [Merchant]
+ *     summary: Request password reset
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Password reset email sent
+ *       404:
+ *         description: Merchant not found
+ */
+router.post('/forgot-password', validateRequest(ForgotPasswordDto), merchantController.forgotPassword);
+
+/**
+ * @swagger
+ * /api/merchants/reset-password:
+ *   post:
+ *     tags: [Merchant]
+ *     summary: Reset password using token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - password
+ *             properties:
+ *               token:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post('/reset-password', validateRequest(ResetPasswordDto), merchantController.resetPassword);
+
+/**
+ * @swagger
+ * /api/merchants/change-password:
+ *   post:
+ *     tags: [Merchant]
+ *     summary: Change password (requires authentication)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       401:
+ *         description: Unauthorized or incorrect current password
+ */
+router.post('/change-password', authenticateMerchant, validateRequest(ChangePasswordDto), merchantController.changePassword);
 
 // Protected routes
 router.use(protect);
