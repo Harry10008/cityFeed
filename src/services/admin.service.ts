@@ -2,9 +2,8 @@ import { AdminRepository } from '../repositories/admin.repository';
 import { CreateAdminDtoType, UpdateAdminDtoType, LoginAdminDtoType } from '../dto/admin.dto';
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { IAdmin } from '../interfaces/admin.interface';
+import { IAdmin, Admin } from '../models/admin.model';
 import { OTPService } from '../utils/otpService';
-import { Admin } from '../models/admin.model';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '../utils/emailService';
 
@@ -23,13 +22,10 @@ export class AdminService {
         throw new AppError('Email already registered', 400);
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      
-      // Create admin
+      // Create admin with plain password - the model's pre-save hook will hash it
       const admin = await this.adminRepository.create({
         ...data,
-        password: hashedPassword
+        password: data.password // Let the model handle hashing
       });
 
       // Generate verification token
@@ -62,12 +58,35 @@ export class AdminService {
       // Find admin by email
       const admin = await this.findByEmail(data.email);
       if (!admin) {
+        console.log('Admin not found with email:', data.email);
         throw new AppError('Invalid credentials', 401);
       }
 
-      // Check password
-      const isPasswordValid = await this.verifyPassword(data.password, admin.password);
+      // Check if email is verified
+      if (!admin.isVerified) {
+        console.log('Admin email not verified:', data.email);
+        // Resend verification email
+        const verificationToken = jwt.sign(
+          { id: admin._id, email: admin.email, role: admin.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '24h' }
+        );
+        try {
+          await sendVerificationEmail(admin.email, verificationToken);
+        } catch (emailError) {
+          console.error('Error sending verification email:', emailError);
+        }
+        
+        throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
+      }
+
+      // Check password using the model's comparePassword method
+      console.log('Comparing passwords for admin:', data.email);
+      const isPasswordValid = await admin.comparePassword(data.password);
+      console.log('Password validation result:', isPasswordValid);
+      
       if (!isPasswordValid) {
+        console.log('Invalid password for admin:', data.email);
         throw new AppError('Invalid credentials', 401);
       }
 
@@ -76,6 +95,7 @@ export class AdminService {
 
       return { admin, token };
     } catch (error) {
+      console.error('Login error:', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Error during login', 500);
     }
@@ -185,7 +205,7 @@ export class AdminService {
 
   private generateToken(admin: IAdmin): string {
     const payload = { 
-      id: admin._id, 
+      id: admin._id.toString(), 
       email: admin.email,
       role: admin.role
     };
@@ -218,6 +238,11 @@ export class AdminService {
   }
 
   async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
+    try {
+      return await bcrypt.compare(plainPassword, hashedPassword);
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
+    }
   }
 } 

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminService } from '../services/admin.service';
-import { CreateAdminDto, EmailUpdateDto, UpdateAdminDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/admin.dto';
+import { CreateAdminDto, EmailUpdateDto, UpdateAdminDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto, LoginAdminDto } from '../dto/admin.dto';
 import { AppError } from '../utils/appError';
 //import { verifyToken } from '../utils/emailService';
 import { AuthRequest } from '../middleware/auth';
@@ -71,13 +71,18 @@ export class AdminController {
 
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const loginData = CreateAdminDto.pick({ email: true, password: true }).parse(req.body);
+      const loginData = LoginAdminDto.parse(req.body);
       const { admin, token } = await this.adminService.login(loginData);
       
       res.status(200).json({
         status: 'success',
         data: {
-          admin,
+          admin: {
+            id: admin._id,
+            email: admin.email,
+            fullName: admin.fullName,
+            role: admin.role
+          },
           token
         }
       });
