@@ -22,8 +22,8 @@ export const generateVerificationToken = (userId: string, role: string): string 
 };
 
 // Send verification email
-export const sendVerificationEmail = async (email: string, token: string, role: string): Promise<void> => {
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}&role=${role}`;
+export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
   
   const mailOptions = {
     from: `"CityFeed" <${process.env.EMAIL_USER}>`,
@@ -83,6 +83,7 @@ If you did not create an account with CityFeed, please ignore this email.
 
   try {
     await transporter.sendMail(mailOptions);
+    console.log('Verification email sent successfully to:', email);
   } catch (error) {
     console.error('Error sending verification email:', error);
     throw new Error('Failed to send verification email');

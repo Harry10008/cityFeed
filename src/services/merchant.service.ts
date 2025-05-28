@@ -3,7 +3,7 @@ import { CreateMerchantDtoType, UpdateMerchantDtoType, LoginMerchantDtoType } fr
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IMerchant } from '../interfaces/merchant.interface';
-import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService';
+import { sendVerificationEmail } from '../utils/emailService';
 import { OTPService } from '../utils/otpService';
 import { Merchant } from '../models/merchant.model';
 import bcrypt from 'bcryptjs';
@@ -28,10 +28,19 @@ export class MerchantService {
     
       // Generate tokens
       const token = this.generateToken(merchant);
-      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
+      const verificationToken = jwt.sign(
+        { id: merchant._id, email: merchant.email, role: merchant.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
     
       // Send verification email
-      await sendVerificationEmail(merchant.email, verificationToken, merchant.role);
+      try {
+        await sendVerificationEmail(merchant.email, verificationToken);
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+        // Don't throw error here, just log it. Merchant can request verification email later
+      }
     
       return { merchant, token };
     } catch (error) {
@@ -55,8 +64,16 @@ export class MerchantService {
     // Check if email is verified
     if (!merchant.isVerified) {
       // Resend verification email
-      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.role);
-      await sendVerificationEmail(merchant.email, verificationToken, merchant.role);
+      const verificationToken = jwt.sign(
+        { id: merchant._id, email: merchant.email, role: merchant.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+      try {
+        await sendVerificationEmail(merchant.email, verificationToken);
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+      }
       
       throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
     }

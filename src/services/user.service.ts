@@ -33,7 +33,22 @@ export class UserService {
       // Create user with gender as is (already in correct format from DTO)
       const user = await this.userRepository.create(data);
     
-      // Generate token
+      // Generate verification token
+      const verificationToken = jwt.sign(
+        { id: user._id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+      
+      // Send verification email
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+        // Don't throw error here, just log it. User can request verification email later
+      }
+    
+      // Generate login token
       const token = this.generateToken(user);
     
       return { user, token };
@@ -198,8 +213,7 @@ export class UserService {
     }
 
     // Send reset email
-   // const resetUrl = `${config.clientUrl}/reset-password?token=${resetToken}`;
-    await sendVerificationEmail(user.email, resetToken, 'user');
+    await sendVerificationEmail(user.email, resetToken);
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

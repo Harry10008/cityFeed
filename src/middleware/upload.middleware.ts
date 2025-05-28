@@ -65,7 +65,8 @@ const merchantUpload = multer({
 const userUpload = multer({
   storage: userStorage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max file size
-  fileFilter
+  fileFilter,
+  preservePath: true
 });
 
 // Middleware for merchant images upload (2-5 images)
@@ -139,9 +140,9 @@ export const updateMerchantImages = (req: Request, res: Response, next: NextFunc
 
 // Middleware for user profile image upload
 export const uploadUserProfileImage = (req: Request, res: Response, next: NextFunction) => {
-  const profileImageUpload = userUpload.single('profileImage');
+  const upload = userUpload.single('profileImage');
   
-  profileImageUpload(req, res, (err) => {
+  upload(req, res, (err: any) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return next(new AppError('Image size should be less than 2MB', 400));
@@ -154,6 +155,17 @@ export const uploadUserProfileImage = (req: Request, res: Response, next: NextFu
     // If a file was uploaded, add the path to the request body
     if (req.file) {
       req.body.profileImage = `/uploads/users/${req.file.filename}`;
+    }
+
+    // Parse form fields if they exist
+    if (req.body.fields) {
+      try {
+        const fields = JSON.parse(req.body.fields);
+        req.body = { ...req.body, ...fields };
+      } catch (error) {
+        console.error('Error parsing form fields:', error);
+        return next(new AppError('Invalid form data format', 400));
+      }
     }
     
     next();

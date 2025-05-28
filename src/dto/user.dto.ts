@@ -20,12 +20,32 @@ export const CreateUserDto = z.object({
     const match = str.match(dateRegex);
     
     if (!match) {
-      throw new Error('Invalid date format. Please use DD/MM/YYYY');
+      throw new Error('Date must be in DD/MM/YYYY format (e.g., 01/01/1990)');
     }
 
     const [_, day, month, year] = match;
-    const date = new Date(`${year}-${month}-${day}`);
     
+    // Validate day
+    const dayNum = parseInt(day);
+    if (dayNum < 1 || dayNum > 31) {
+      throw new Error('Day must be between 01 and 31');
+    }
+    
+    // Validate month
+    const monthNum = parseInt(month);
+    if (monthNum < 1 || monthNum > 12) {
+      throw new Error('Month must be between 01 and 12');
+    }
+    
+    // Validate year
+    const yearNum = parseInt(year);
+    const currentYear = new Date().getFullYear();
+    if (yearNum < 1900 || yearNum > currentYear) {
+      throw new Error(`Year must be between 1900 and ${currentYear}`);
+    }
+    
+    // Create date and validate it's a real date
+    const date = new Date(`${year}-${month}-${day}`);
     if (isNaN(date.getTime())) {
       throw new Error('Invalid date. Please provide a valid date');
     }
@@ -49,12 +69,32 @@ export const UpdateUserDto = z.object({
     const match = str.match(dateRegex);
     
     if (!match) {
-      throw new Error('Invalid date format. Please use DD/MM/YYYY');
+      throw new Error('Date must be in DD/MM/YYYY format (e.g., 01/01/1990)');
     }
 
     const [_, day, month, year] = match;
-    const date = new Date(`${year}-${month}-${day}`);
     
+    // Validate day
+    const dayNum = parseInt(day);
+    if (dayNum < 1 || dayNum > 31) {
+      throw new Error('Day must be between 01 and 31');
+    }
+    
+    // Validate month
+    const monthNum = parseInt(month);
+    if (monthNum < 1 || monthNum > 12) {
+      throw new Error('Month must be between 01 and 12');
+    }
+    
+    // Validate year
+    const yearNum = parseInt(year);
+    const currentYear = new Date().getFullYear();
+    if (yearNum < 1900 || yearNum > currentYear) {
+      throw new Error(`Year must be between 1900 and ${currentYear}`);
+    }
+    
+    // Create date and validate it's a real date
+    const date = new Date(`${year}-${month}-${day}`);
     if (isNaN(date.getTime())) {
       throw new Error('Invalid date. Please provide a valid date');
     }
