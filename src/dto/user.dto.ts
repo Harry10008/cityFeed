@@ -1,54 +1,67 @@
 import { z } from 'zod';
 
 // Base schemas
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters long');
-const emailSchema = z.string().email('Invalid email address');
+//const passwordSchema = z.string().min(6, 'Password must be at least 6 characters long');
+//const emailSchema = z.string().email('Invalid email address');
 
 // Request DTOs
 export const CreateUserDto = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters long'),
-  email: emailSchema,
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  password: passwordSchema,
-  role: z.enum(['user']).default('user'),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']),
-  address: z.string().min(5, 'Address must be at least 5 characters long'),
-  gender: z.enum(['M', 'F', '0']),
-  dob: z.string().datetime(),
-  profileImage: z.string().optional()
+  address: z.string().min(5, 'Address must be at least 5 characters'),
+  gender: z.enum(['M', 'F', 'O'], {
+    errorMap: () => ({ message: 'Gender must be M, F, or O' })
+  }),
+  dob: z.string().transform((str) => {
+    const date = new Date(str);
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date format. Please use MM/DD/YYYY');
+    }
+    return date;
+  }),
+  profileImage: z.string().optional(),
+  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).default('bronze')
 });
 
 export const UpdateUserDto = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters long').optional(),
-  email: emailSchema.optional(),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+  email: z.string().email('Invalid email format').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
-  address: z.string().min(5, 'Address must be at least 5 characters long').optional(),
-  gender: z.enum(['M', 'F', '0']).optional(),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional(),
-  dob: z.string().datetime().optional(),
+  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
+  gender: z.enum(['M', 'F', 'O']).optional(),
+  dob: z.string().transform((str) => {
+    const date = new Date(str);
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date format. Please use MM/DD/YYYY');
+    }
+    return date;
+  }).optional(),
   profileImage: z.string().optional(),
-  password: passwordSchema.optional(),
+  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional(),
   resetToken: z.string().optional(),
   resetTokenExpires: z.date().optional()
 });
 
 export const LoginUserDto = z.object({
-  email: emailSchema,
-  password: passwordSchema
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
 });
 
 export const ForgotPasswordDto = z.object({
-  email: emailSchema
+  email: z.string().email('Invalid email format')
 });
 
 export const ResetPasswordDto = z.object({
   token: z.string(),
-  password: passwordSchema
+  password: z.string().min(6, 'Password must be at least 6 characters')
 });
 
 export const ChangePasswordDto = z.object({
-  currentPassword: passwordSchema,
-  newPassword: passwordSchema
+  currentPassword: z.string().min(6, 'Current password must be at least 6 characters'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters')
 });
 
 // Response DTOs

@@ -155,7 +155,7 @@ router.post('/login', validate(LoginUserDto), userController.login);
  *       400:
  *         description: Invalid or expired token
  */
-router.get('/verify-email', userController.verifyEmail);
+router.get('/verify/:token', userController.verifyEmail);
 
 /**
  * @swagger
@@ -295,31 +295,20 @@ router.get('/profile', userController.getProfile);
  *         description: Unauthorized
  */
 router.patch('/profile', updateUserProfileImage, validate(UpdateUserDto), userController.updateProfile);
-router.patch('/profile/membership', userController.updateMembershipType);
+router.patch('/profile/membership', userController.updateMembership);
 router.patch('/profile/image', updateUserProfileImage, userController.updateProfileImage);
 
-// Email update routes (with rate limiting)
+// Email update routes
 router.post(
   '/profile/email/initiate',
-  //rateLimit({ windowMs: 15 * 60 * 1000, max: 3 }), // 3 attempts per 15 minutes
+  validate(UpdateUserDto),
   userController.initiateEmailUpdate
 );
+
 router.post(
   '/profile/email/verify',
-  //rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 attempts per 15 minutes
+  validate(UpdateUserDto),
   userController.verifyAndUpdateEmail
-);
-
-// Phone update routes (with rate limiting)
-router.post(
-  '/profile/phone/initiate',
-  // rateLimit({ windowMs: 15 * 60 * 1000, max: 3 }), // 3 attempts per 15 minutes
-  userController.initiateMobileUpdate
-);
-router.post(
-  '/profile/phone/verify',
-  //rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 attempts per 15 minutes
-  userController.verifyAndUpdateMobile
 );
 
 export default router; 

@@ -11,7 +11,7 @@ export interface IUser extends Document {
   isActive: boolean;
   isVerified: boolean;
   address?: string;
-  gender?: 'male' | 'female' | 'other';
+  gender?: 'M' | 'F' | 'O';
   dob?: Date;
   profileImage?: string;
   resetToken?: string;
