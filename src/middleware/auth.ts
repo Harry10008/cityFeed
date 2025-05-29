@@ -15,9 +15,10 @@ export interface AuthRequest extends Request {
 }
 
 interface JwtPayload {
-  id: string;
-  email: string;
+  userId: string;
+  email?: string;
   role: string;
+  isVerified?: boolean;
 }
 
 export const authenticateMerchant = async (
@@ -47,7 +48,7 @@ export const authenticateMerchant = async (
     }
 
     // Fetch merchant from database to get full merchant data
-    const merchant = await Merchant.findById(decoded.id).select('-password');
+    const merchant = await Merchant.findById(decoded.userId).select('-password');
     if (!merchant) {
       res.status(401).json({
         status: 'error',
@@ -93,8 +94,8 @@ export const authenticateAdmin = async (
     }
 
     req.admin = {
-      id: decoded.id,
-      email: decoded.email,
+      id: decoded.userId,
+      email: decoded.email || '',
       role: decoded.role
     };
     next();

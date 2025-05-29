@@ -38,7 +38,7 @@ export class MerchantService {
       // Generate tokens
       const token = this.generateToken(merchant);
       const verificationToken = jwt.sign(
-        { id: merchant._id, email: merchant.email, role: merchant.role },
+        { userId: merchant._id, email: merchant.email, role: merchant.role },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -64,8 +64,8 @@ export class MerchantService {
   }
 
   async login(data: LoginMerchantDtoType): Promise<{ merchant: IMerchant; token: string }> {
-    // Find merchant by email
-    const merchant = await this.merchantRepository.findByEmail(data.email);
+    // Find merchant by email and explicitly select password field
+    const merchant = await Merchant.findOne({ email: data.email }).select('+password');
     if (!merchant) {
       throw new AppError('Invalid credentials', 401);
     }
@@ -74,7 +74,7 @@ export class MerchantService {
     if (!merchant.isVerified) {
       // Resend verification email
       const verificationToken = jwt.sign(
-        { id: merchant._id, email: merchant.email, role: merchant.role },
+        { userId: merchant._id, email: merchant.email, role: merchant.role },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -87,7 +87,7 @@ export class MerchantService {
       throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
     }
 
-    // Check password
+    // Check password using the model's comparePassword method
     const isPasswordValid = await merchant.comparePassword(data.password);
     if (!isPasswordValid) {
       throw new AppError('Invalid credentials', 401);
@@ -117,7 +117,7 @@ export class MerchantService {
 
   private generateToken(merchant: IMerchant): string {
     const payload = { 
-      id: merchant._id, 
+      userId: merchant._id, 
       role: merchant.role,
       isVerified: merchant.isVerified 
     };
@@ -168,7 +168,7 @@ export class MerchantService {
 
     // Send verification email for new email
     const verificationToken = jwt.sign(
-      { id: merchant._id, email: merchant.email, role: merchant.role },
+      { userId: merchant._id, email: merchant.email, role: merchant.role },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -180,22 +180,6 @@ export class MerchantService {
     }
 
     return merchant;
-  }
-
-  async create(data: CreateMerchantDtoType): Promise<IMerchant> {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    const merchantData = {
-      ...data,
-      password: hashedPassword,
-      businessType: data.businessType || 'restaurant',
-      businessAddress: data.address,
-      foodPreference: data.foodPreference || 'both',
-      role: 'merchant' as const,
-      isActive: true,
-      isVerified: false
-    };
-    const merchant = await Merchant.create(merchantData);
-    return merchant.toObject();
   }
 
   async findByEmail(email: string): Promise<IMerchant | null> {

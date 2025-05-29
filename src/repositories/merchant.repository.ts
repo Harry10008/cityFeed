@@ -2,28 +2,24 @@ import { IMerchant } from '../interfaces/merchant.interface';
 import { Merchant } from '../models/merchant.model';
 import { CreateMerchantDtoType } from '../dto/merchant.dto';
 import { AppError } from '../utils/appError';
-import bcrypt from 'bcryptjs';
 
 export class MerchantRepository {
   async create(data: CreateMerchantDtoType): Promise<IMerchant> {
     try {
-      // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(data.password, salt);
-
       const merchant = new Merchant({
         ...data,
-        password: hashedPassword,
         businessType: data.businessType || 'restaurant',
         businessAddress: data.address,
         foodPreference: data.foodPreference || 'both',
         role: 'merchant' as const,
         isActive: true,
-        isVerified: false
+        isVerified: false,
+        businessImages: data.businessImages || []
       });
 
       return await merchant.save();
     } catch (error) {
+      console.error('Error creating merchant:', error);
       if (error.code === 11000) {
         throw new AppError('Email already registered', 400);
       }

@@ -11,7 +11,7 @@ export const CreateMerchantDto = z.object({
   businessType: z.string().optional(),
   businessDescription: z.string().min(50, 'Business description must be at least 50 characters long'),
   foodPreference: z.enum(['veg', 'nonveg', 'both']).optional(),
-  businessImages: z.array(z.string()).min(3, 'At least 3 business images are required').max(10, 'Maximum 10 business images allowed')
+  businessImages: z.array(z.any()).optional()
 });
 
 export const LoginMerchantDto = z.object({
@@ -27,7 +27,7 @@ export const UpdateMerchantDto = z.object({
   businessType: z.string().optional(),
   businessDescription: z.string().min(50, 'Business description must be at least 50 characters long').optional(),
   foodPreference: z.enum(['veg', 'nonveg', 'both']).optional(),
-  businessImages: z.array(z.string()).min(3, 'At least 3 business images are required').max(10, 'Maximum 10 business images allowed').optional()
+  businessImages: z.array(z.any()).optional()
 });
 
 // Types

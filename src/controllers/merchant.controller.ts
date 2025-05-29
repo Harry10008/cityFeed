@@ -14,12 +14,21 @@ export class MerchantController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Get image paths from uploaded files
+      const businessImages = (req.files as Express.Multer.File[])?.map(file => `/uploads/merchants/${file.filename}`) || [];
+
       // Validate number of images
-      if (!req.body.businessImages || req.body.businessImages.length < 3 || req.body.businessImages.length > 10) {
+      if (businessImages.length < 3 || businessImages.length > 10) {
         throw new AppError('You must provide between 3 and 10 business images', 400);
       }
 
-      const { merchant, token } = await this.merchantService.register(req.body);
+      // Add image paths to request body
+      const merchantData = {
+        ...req.body,
+        businessImages
+      };
+
+      const { merchant, token } = await this.merchantService.register(merchantData);
       
       res.status(201).json({
         status: 'success',

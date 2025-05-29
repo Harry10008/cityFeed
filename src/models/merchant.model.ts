@@ -73,16 +73,16 @@ const merchantSchema = new Schema<IMerchant>({
     required: [true, 'Business description is required'],
     minlength: [50, 'Business description must be at least 50 characters long']
   },
-  businessImages: [{
-    type: String,
+  businessImages: {
+    type: [String],
     required: [true, 'At least 3 business images are required'],
     validate: {
       validator: function(images: string[]) {
-        return images.length >= 3 && images.length <= 10;
+        return images && images.length >= 3 && images.length <= 10;
       },
       message: 'You must provide between 3 and 10 business images'
     }
-  }],
+  },
   foodPreference: {
     type: String,
     enum: ['veg', 'nonveg', 'both'],
