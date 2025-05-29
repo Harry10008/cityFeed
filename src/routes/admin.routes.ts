@@ -2,9 +2,12 @@ import { Router } from 'express';
 import { AdminController } from '../controllers/admin.controller';
 import { protect, restrictTo } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { CreateAdminDto, EmailUpdateDto, LoginAdminDto, UpdateAdminDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/admin.dto';
+import { CreateAdminDto, EmailUpdateDto, LoginAdminDto, UpdateAdminDto } from '../dto/admin.dto';
+import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../utils/appError';
+import jwt from 'jsonwebtoken';
+import { sendVerificationEmail } from '../utils/emailService';
 //import { validateRequest } from '../middleware/validateRequest';
-import { authenticateAdmin } from '../middleware/auth';
 
 const router = Router();
 const adminController = new AdminController();
@@ -150,93 +153,6 @@ router.post('/login', validate(LoginAdminDto), adminController.login);
 
 /**
  * @swagger
- * /api/admins/forgot-password:
- *   post:
- *     tags: [Admins]
- *     summary: Request password reset for an admin
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *     responses:
- *       200:
- *         description: Password reset email sent
- *       404:
- *         description: Admin not found
- */
-router.post('/forgot-password', validate(ForgotPasswordDto), adminController.forgotPassword);
-
-/**
- * @swagger
- * /api/admins/reset-password:
- *   post:
- *     tags: [Admins]
- *     summary: Reset admin password using token
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *               - password
- *             properties:
- *               token:
- *                 type: string
- *               password:
- *                 type: string
- *                 minLength: 6
- *     responses:
- *       200:
- *         description: Password reset successful
- *       400:
- *         description: Invalid or expired token
- */
-router.post('/reset-password', validate(ResetPasswordDto), adminController.resetPassword);
-
-/**
- * @swagger
- * /api/admins/change-password:
- *   post:
- *     tags: [Admins]
- *     summary: Change admin password
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currentPassword
- *               - newPassword
- *             properties:
- *               currentPassword:
- *                 type: string
- *                 minLength: 6
- *               newPassword:
- *                 type: string
- *                 minLength: 6
- *     responses:
- *       200:
- *         description: Password changed successfully
- *       401:
- *         description: Unauthorized - Invalid current password
- */
-router.post('/change-password', authenticateAdmin, validate(ChangePasswordDto), adminController.changePassword);
-
-/**
- * @swagger
  * /api/admins/verify-email:
  *   get:
  *     summary: Verify admin email
@@ -278,47 +194,152 @@ router.post('/change-password', authenticateAdmin, validate(ChangePasswordDto), 
  */
 router.get('/verify-email', adminController.verifyEmail);
 
+/**
+ * @swagger
+ * /api/admins/test-email:
+ *   post:
+ *     summary: Test email configuration
+ *     tags: [Admins]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Test email sent successfully
+ *       500:
+ *         description: Email configuration error
+ */
+router.post('/test-email', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    // Generate a test token
+    const testToken = jwt.sign(
+      { id: 'test', email, role: 'admin' },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    // Send test email
+    await sendVerificationEmail(email, testToken);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Test email sent successfully. Please check your inbox.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Protected routes
 router.use(protect);
 router.use(restrictTo('admin'));
 
 /**
  * @swagger
- * /api/admins/all:
+ * /api/admins/profile:
  *   get:
- *     summary: Get all admins
+ *     summary: Get admin profile
  *     tags: [Admins]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of all admins
+ *         description: Admin profile retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   name:
- *                     type: string
- *                   email:
- *                     type: string
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/all', adminController.getAllAdmins);
-
 router.get('/profile', adminController.getProfile);
-router.patch('/profile', validate(UpdateAdminDto), adminController.updateProfile);
-router.patch('/permissions', adminController.updatePermissions);
 
-// Email update routes
-router.post('/profile/email', validate(EmailUpdateDto), adminController.initiateEmailUpdate);
-router.post('/profile/email/verify', validate(VerifyEmailDto), adminController.verifyAndUpdateEmail);
+/**
+ * @swagger
+ * /api/admins/profile:
+ *   patch:
+ *     summary: Update admin profile
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fullName
+ *               - phone
+ *               - address
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Admin profile updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+router.patch('/profile', validate(UpdateAdminDto), adminController.updateProfile);
+
+/**
+ * @swagger
+ * /api/admins/profile/email:
+ *   patch:
+ *     summary: Update admin email
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Admin email updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+router.patch('/profile/email', validate(EmailUpdateDto), adminController.updateEmail);
 
 export default router; 

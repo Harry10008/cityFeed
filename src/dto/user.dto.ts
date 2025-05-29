@@ -102,14 +102,16 @@ export const UpdateUserDto = z.object({
     return date;
   }).optional(),
   profileImage: z.string().optional(),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional(),
-  resetToken: z.string().optional(),
-  resetTokenExpires: z.date().optional()
+  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional()
 });
 
 export const LoginUserDto = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters')
+});
+
+export const EmailUpdateDto = z.object({
+  newEmail: z.string().email('Invalid email format')
 });
 
 export const ForgotPasswordDto = z.object({
@@ -143,6 +145,7 @@ export const UserResponseDto = z.object({
 export type CreateUserDtoType = z.infer<typeof CreateUserDto>;
 export type UpdateUserDtoType = z.infer<typeof UpdateUserDto>;
 export type LoginUserDtoType = z.infer<typeof LoginUserDto>;
+export type EmailUpdateDtoType = z.infer<typeof EmailUpdateDto>;
 export type ForgotPasswordDtoType = z.infer<typeof ForgotPasswordDto>;
 export type ResetPasswordDtoType = z.infer<typeof ResetPasswordDto>;
 export type ChangePasswordDtoType = z.infer<typeof ChangePasswordDto>;

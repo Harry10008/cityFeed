@@ -4,7 +4,6 @@ import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IMerchant } from '../interfaces/merchant.interface';
 import { sendVerificationEmail } from '../utils/emailService';
-import { OTPService } from '../utils/otpService';
 import { Merchant } from '../models/merchant.model';
 import bcrypt from 'bcryptjs';
 
@@ -144,7 +143,7 @@ export class MerchantService {
     return merchant;
   }
 
-  async initiateEmailUpdate(merchantId: string, newEmail: string): Promise<void> {
+  async updateEmail(merchantId: string, newEmail: string): Promise<IMerchant> {
     // Check if merchant exists and is verified
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
@@ -162,22 +161,23 @@ export class MerchantService {
       throw new AppError('Email already registered', 400);
     }
 
-    await OTPService.sendOTP('email', merchantId, newEmail);
-  }
-
-  async verifyAndUpdateEmail(merchantId: string, newEmail: string, otp: string): Promise<IMerchant> {
-    const isValid = await OTPService.verifyOTP('email', merchantId, otp);
-    if (!isValid) {
-      throw new AppError('Invalid or expired OTP', 400);
-    }
-
-    const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) {
-      throw new AppError('Merchant not found', 404);
-    }
-
+    // Update email
     merchant.email = newEmail;
+    merchant.isVerified = false; // Require verification for new email
     await merchant.save();
+
+    // Send verification email for new email
+    const verificationToken = jwt.sign(
+      { id: merchant._id, email: merchant.email, role: merchant.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
+    );
+    
+    try {
+      await sendVerificationEmail(merchant.email, verificationToken);
+    } catch (emailError) {
+      console.error('Error sending verification email:', emailError);
+    }
 
     return merchant;
   }

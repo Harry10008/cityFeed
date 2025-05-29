@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import { MerchantController } from '../controllers/merchant.controller';
-import { protect, restrictTo } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { CreateMerchantDto, EmailUpdateDto, LoginMerchantDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto, UpdateMerchantDto } from '../dto/merchant.dto';
-import { validateRequest } from '../middleware/validateRequest';
+import { CreateMerchantDto, LoginMerchantDto, UpdateMerchantDto } from '../dto/merchant.dto';
 import { authenticateMerchant } from '../middleware/auth';
 import { uploadBusinessImages, uploadProfileImage } from '../middleware/upload';
 
@@ -120,7 +118,11 @@ const merchantController = new MerchantController();
  *       400:
  *         description: Validation error
  */
-router.post('/register', uploadBusinessImages, validate(CreateMerchantDto), merchantController.register);
+router.post('/register', 
+  uploadBusinessImages,
+  validate(CreateMerchantDto),
+  merchantController.register
+);
 
 /**
  * @swagger
@@ -149,7 +151,10 @@ router.post('/register', uploadBusinessImages, validate(CreateMerchantDto), merc
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(LoginMerchantDto), merchantController.login);
+router.post('/login', 
+  validate(LoginMerchantDto),
+  merchantController.login
+);
 
 /**
  * @swagger
@@ -202,95 +207,8 @@ router.get('/verify-email', merchantController.verifyEmail);
  */
 router.get('/category/:category', merchantController.getMerchants);
 
-/**
- * @swagger
- * /api/merchants/forgot-password:
- *   post:
- *     tags: [Merchant]
- *     summary: Request password reset
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *     responses:
- *       200:
- *         description: Password reset email sent
- *       404:
- *         description: Merchant not found
- */
-router.post('/forgot-password', validateRequest(ForgotPasswordDto), merchantController.forgotPassword);
-
-/**
- * @swagger
- * /api/merchants/reset-password:
- *   post:
- *     tags: [Merchant]
- *     summary: Reset password using token
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *               - password
- *             properties:
- *               token:
- *                 type: string
- *               password:
- *                 type: string
- *                 minLength: 6
- *     responses:
- *       200:
- *         description: Password reset successful
- *       400:
- *         description: Invalid or expired token
- */
-router.post('/reset-password', validateRequest(ResetPasswordDto), merchantController.resetPassword);
-
-/**
- * @swagger
- * /api/merchants/change-password:
- *   post:
- *     tags: [Merchant]
- *     summary: Change password (requires authentication)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currentPassword
- *               - newPassword
- *             properties:
- *               currentPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *                 minLength: 6
- *     responses:
- *       200:
- *         description: Password changed successfully
- *       401:
- *         description: Unauthorized or incorrect current password
- */
-router.post('/change-password', authenticateMerchant, validateRequest(ChangePasswordDto), merchantController.changePassword);
-
 // Protected routes
-router.use(protect);
-router.use(restrictTo('merchant'));
+router.use(authenticateMerchant);
 
 /**
  * @swagger
@@ -343,34 +261,16 @@ router.get('/profile', merchantController.getProfile);
  *       200:
  *         description: Profile updated successfully
  */
-router.patch('/profile', uploadBusinessImages, uploadProfileImage, validate(UpdateMerchantDto), merchantController.updateProfile);
+router.patch('/profile',
+  uploadBusinessImages,
+  uploadProfileImage,
+  validate(UpdateMerchantDto),
+  merchantController.updateProfile
+);
 
-/**
- * @swagger
- * /api/merchants/profile/email:
- *   post:
- *     summary: Initiate email update
- *     tags: [Merchants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - newEmail
- *             properties:
- *               newEmail:
- *                 type: string
- *                 format: email
- *     responses:
- *       200:
- *         description: Email update initiated
- *       401:
- *         description: Unauthorized
- */
-router.post('/profile/email', validate(EmailUpdateDto), merchantController.initiateEmailUpdate);
+router.patch('/email',
+  validate(UpdateMerchantDto),
+  merchantController.updateEmail
+);
 
 export default router; 

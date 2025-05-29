@@ -5,40 +5,25 @@ import { AppError } from '../utils/appError';
 export const validate = (schema: AnyZodObject) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
+      // Log the request body for debugging
+      console.log('Request body:', req.body);
+      
       // For multipart/form-data, handle files first
       if (req.files) {
-        // If businessImages are uploaded, add them to the body
-        if (Array.isArray(req.files)) {
-          req.body.businessImages = req.files.map(file => `/uploads/merchants/${file.filename}`);
-        }
+        // If there are files, they are already parsed by multer
+        // You can access them via req.files
+        console.log('Files:', req.files);
       }
-
-      // Parse and validate the data
-      const validatedData = await schema.parseAsync(req.body);
       
-      // Update the request body with validated data
-      req.body = validatedData;
+      // Parse and validate the request body
+      await schema.parseAsync(req.body);
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        // Format validation errors
-        const formattedErrors = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code
-        }));
-        
-        // Create a detailed error message
-        const errorMessage = formattedErrors
-          .map(err => `${err.field}: ${err.message}`)
-          .join(', ');
-        
+        const errorMessage = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
         next(new AppError(errorMessage, 400));
-      } else if (error instanceof Error) {
-        // Handle custom errors from transformations
-        next(new AppError(error.message, 400));
       } else {
-        next(new AppError('Validation failed', 400));
+        next(error);
       }
     }
   };
