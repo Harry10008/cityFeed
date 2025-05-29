@@ -1,6 +1,4 @@
 import { Document, Types } from 'mongoose';
-import { IUser } from './user.interface';
-import { ICoupon } from './coupon.interface';
 
 export interface ICouponRedemption extends Document {
   user: Types.ObjectId;

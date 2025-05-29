@@ -10,7 +10,6 @@ import {
   EmailUpdateDto
 } from '../dto/user.dto';
 import multer from 'multer';
-//import { rateLimit } from '../middleware/rateLimit';
 
 const router = express.Router();
 const userController = new UserController();

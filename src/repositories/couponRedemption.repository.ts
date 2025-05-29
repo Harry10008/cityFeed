@@ -1,4 +1,5 @@
-import { CouponRedemption, ICouponRedemption } from '../models/couponRedemption.model';
+import { CouponRedemption } from '../models/couponRedemption.model';
+import { ICouponRedemption } from '../interfaces/couponRedemption.interface';
 import { AppError } from '../utils/appError';
 
 export class CouponRedemptionRepository {
@@ -67,7 +68,7 @@ export class CouponRedemptionRepository {
       });
 
       const totalRedemptions = redemptions.length;
-      const totalSavings = redemptions.reduce((sum, redemption) => sum + redemption.discountApplied, 0);
+      const totalSavings = redemptions.reduce((sum, redemption) => sum + redemption.discountAmount, 0);
       const averageDiscount = totalRedemptions > 0 ? totalSavings / totalRedemptions : 0;
 
       return {
