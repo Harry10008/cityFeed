@@ -23,8 +23,18 @@ export class MerchantService {
         throw new AppError('Email already registered', 400);
       }
 
-      // Create merchant
-      const merchant = await this.merchantRepository.create(data);
+      // Create merchant with default values for required fields
+      const merchantData = {
+        ...data,
+        businessType: data.businessType || 'restaurant',
+        businessAddress: data.address,
+        foodPreference: data.foodPreference || 'both',
+        role: 'merchant' as const,
+        isActive: true,
+        isVerified: false
+      };
+
+      const merchant = await this.merchantRepository.create(merchantData);
     
       // Generate tokens
       const token = this.generateToken(merchant);
@@ -161,38 +171,62 @@ export class MerchantService {
       throw new AppError('Invalid or expired OTP', 400);
     }
 
-    const merchant = await this.merchantRepository.update(merchantId, { email: newEmail });
+    const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
+
+    merchant.email = newEmail;
+    await merchant.save();
+
     return merchant;
   }
 
   async create(data: CreateMerchantDtoType): Promise<IMerchant> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    return Merchant.create({ ...data, password: hashedPassword });
+    const merchantData = {
+      ...data,
+      password: hashedPassword,
+      businessType: data.businessType || 'restaurant',
+      businessAddress: data.address,
+      foodPreference: data.foodPreference || 'both',
+      role: 'merchant' as const,
+      isActive: true,
+      isVerified: false
+    };
+    const merchant = await Merchant.create(merchantData);
+    return merchant.toObject();
   }
 
   async findByEmail(email: string): Promise<IMerchant | null> {
-    return Merchant.findOne({ email }).select('+password');
+    const merchant = await Merchant.findOne({ email }).select('+password');
+    return merchant ? merchant.toObject() : null;
   }
 
   async findById(id: string): Promise<IMerchant | null> {
-    return Merchant.findById(id).select('+password');
+    const merchant = await Merchant.findById(id).select('+password');
+    return merchant ? merchant.toObject() : null;
   }
 
   async findByResetToken(token: string): Promise<IMerchant | null> {
-    return Merchant.findOne({
+    const merchant = await Merchant.findOne({
       resetToken: token,
-      resetTokenExpires: { $gt: new Date() }
-    }).select('+password');
+      resetTokenExpires: { $gt: Date.now() }
+    });
+    return merchant ? merchant.toObject() : null;
   }
 
-  async update(id: string, data: Partial<UpdateMerchantDtoType>): Promise<IMerchant | null> {
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+  async update(id: string, data: Partial<IMerchant>): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(id);
+    if (!merchant) {
+      return null;
     }
-    return Merchant.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+
+    // Update fields
+    Object.assign(merchant, data);
+    await merchant.save();
+
+    return merchant.toObject();
   }
 
   async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
@@ -200,67 +234,35 @@ export class MerchantService {
   }
 
   async getAllMerchants(): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ isActive: true })
-        .select('-password -resetToken -resetTokenExpires')
-        .sort({ createdAt: -1 });
-    } catch (error) {
-      throw new AppError('Error fetching merchants', 500);
-    }
+    const merchants = await Merchant.find({ isActive: true }).lean();
+    return merchants as IMerchant[];
   }
 
   async getMerchantsByCategory(category: string): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ 
-        category,
-        isActive: true 
-      })
-        .select('-password -resetToken -resetTokenExpires')
-        .sort({ createdAt: -1 });
-    } catch (error) {
-      throw new AppError('Error fetching merchants by category', 500);
-    }
+    const merchants = await Merchant.find({
+      businessType: category,
+      isActive: true
+    }).lean();
+    return merchants as IMerchant[];
   }
 
-  async getMerchantsByFoodPreference(foodPreference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
-    try {
-      // Validate food preference
-      if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
-        throw new AppError('Invalid food preference', 400);
-      }
-
-      return await Merchant.find({ 
-        foodPreference,
-        isActive: true 
-      })
-        .select('-password -resetToken -resetTokenExpires')
-        .sort({ createdAt: -1 });
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Error fetching merchants by food preference', 500);
-    }
+  async getMerchantsByFoodPreference(preference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
+    const merchants = await Merchant.find({
+      foodPreference: preference,
+      isActive: true
+    }).lean();
+    return merchants as IMerchant[];
   }
 
   async getMerchantsByCategoryAndFoodPreference(
     category: string,
-    foodPreference: 'veg' | 'nonveg' | 'both'
+    preference: 'veg' | 'nonveg' | 'both'
   ): Promise<IMerchant[]> {
-    try {
-      // Validate food preference
-      if (!['veg', 'nonveg', 'both'].includes(foodPreference)) {
-        throw new AppError('Invalid food preference', 400);
-      }
-
-      return await Merchant.find({ 
-        category,
-        foodPreference,
-        isActive: true 
-      })
-        .select('-password -resetToken -resetTokenExpires')
-        .sort({ createdAt: -1 });
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Error fetching merchants by category and food preference', 500);
-    }
+    const merchants = await Merchant.find({
+      businessType: category,
+      foodPreference: preference,
+      isActive: true
+    }).lean();
+    return merchants as IMerchant[];
   }
 } 

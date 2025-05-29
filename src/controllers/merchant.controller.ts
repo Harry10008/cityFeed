@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { MerchantService } from '../services/merchant.service';
-import { CreateMerchantDto, EmailUpdateDto, UpdateMerchantDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/merchant.dto';
+import { EmailUpdateDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto, LoginMerchantDto } from '../dto/merchant.dto';
 import { verifyToken } from '../utils/emailService';
 import { AppError } from '../utils/appError';
 import { AuthRequest } from '../middleware/auth';
@@ -17,13 +17,23 @@ export class MerchantController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const merchantData = CreateMerchantDto.parse(req.body);
-      const { merchant, token } = await this.merchantService.register(merchantData);
+      // Validate number of images
+      if (!req.body.businessImages || req.body.businessImages.length < 3 || req.body.businessImages.length > 10) {
+        throw new AppError('You must provide between 3 and 10 business images', 400);
+      }
+
+      const { merchant, token } = await this.merchantService.register(req.body);
       
       res.status(201).json({
         status: 'success',
         data: {
-          merchant,
+          merchant: {
+            id: merchant._id,
+            email: merchant.email,
+            fullName: merchant.fullName,
+            businessName: merchant.businessName,
+            businessImages: merchant.businessImages || []
+          },
           token
         },
         message: 'Registration successful. Please check your email to verify your account.'
@@ -60,13 +70,19 @@ export class MerchantController {
 
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const loginData = CreateMerchantDto.pick({ email: true, password: true }).parse(req.body);
+      const loginData = LoginMerchantDto.parse(req.body);
       const { merchant, token } = await this.merchantService.login(loginData);
       
       res.status(200).json({
         status: 'success',
         data: {
-          merchant,
+          merchant: {
+            id: merchant._id,
+            email: merchant.email,
+            fullName: merchant.fullName,
+            businessName: merchant.businessName,
+            businessImages: merchant.businessImages || []
+          },
           token
         }
       });
@@ -77,11 +93,11 @@ export class MerchantController {
 
   getProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.merchant?._id) {
+      if (!req.merchant?.id) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const merchant = await this.merchantService.getProfile(req.merchant._id.toString());
+      const merchant = await this.merchantService.getProfile(req.merchant.id);
       
       res.status(200).json({
         status: 'success',
@@ -96,12 +112,28 @@ export class MerchantController {
 
   updateProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.merchant?._id) {
+      if (!req.merchant?.id) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const updateData = UpdateMerchantDto.parse(req.body);
-      const merchant = await this.merchantService.updateProfile(req.merchant._id.toString(), updateData);
+      // Get image URLs from uploaded files
+      const businessImages = (req.files as Express.Multer.File[])?.map(file => `/uploads/merchants/${file.filename}`) || [];
+      const profileImage = (req.file as Express.Multer.File)?.filename 
+        ? `/uploads/merchants/${(req.file as Express.Multer.File).filename}`
+        : undefined;
+
+      // If new business images are uploaded, validate the count
+      if (businessImages.length > 0 && (businessImages.length < 3 || businessImages.length > 10)) {
+        throw new AppError('You must provide between 3 and 10 business images', 400);
+      }
+
+      const updateData = {
+        ...req.body,
+        ...(businessImages.length > 0 && { businessImages }),
+        ...(profileImage && { profileImage })
+      };
+
+      const merchant = await this.merchantService.updateProfile(req.merchant.id, updateData);
       
       res.status(200).json({
         status: 'success',
@@ -255,10 +287,13 @@ export class MerchantController {
 
       // Update password and clear reset token
       await this.merchantService.update(merchant._id.toString(), {
-        password,
         resetToken: undefined,
         resetTokenExpires: undefined
       });
+
+      // Update password separately using the model's pre-save hook
+      merchant.password = password;
+      await merchant.save();
 
       res.status(200).json({
         status: 'success',
@@ -288,8 +323,9 @@ export class MerchantController {
         throw new AppError('Current password is incorrect', 401);
       }
 
-      // Update password
-      await this.merchantService.update(req.merchant._id.toString(), { password: newPassword });
+      // Update password using the model's pre-save hook
+      merchant.password = newPassword;
+      await merchant.save();
 
       res.status(200).json({
         status: 'success',

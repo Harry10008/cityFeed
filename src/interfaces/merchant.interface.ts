@@ -9,8 +9,10 @@ export interface IMerchant extends Document {
   businessName: string;
   businessType: string;
   businessAddress: string;
+  businessDescription: string;
+  businessImages: string[];
   foodPreference: 'veg' | 'nonveg' | 'both';
-  images: string[];
+  profileImage?: string;
   isActive: boolean;
   isVerified: boolean;
   role: 'merchant';

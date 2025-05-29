@@ -5,11 +5,16 @@ import { AppError } from '../utils/appError';
 export const validate = (schema: AnyZodObject) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
-      // For multipart/form-data, the data is in req.body.fields
-      const data = req.body.fields || req.body;
-      
+      // For multipart/form-data, handle files first
+      if (req.files) {
+        // If businessImages are uploaded, add them to the body
+        if (Array.isArray(req.files)) {
+          req.body.businessImages = req.files.map(file => `/uploads/merchants/${file.filename}`);
+        }
+      }
+
       // Parse and validate the data
-      const validatedData = await schema.parseAsync(data);
+      const validatedData = await schema.parseAsync(req.body);
       
       // Update the request body with validated data
       req.body = validatedData;

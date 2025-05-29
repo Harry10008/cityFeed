@@ -1,14 +1,32 @@
-import { Merchant } from '../models/merchant.model';
 import { IMerchant } from '../interfaces/merchant.interface';
-import { CreateMerchantDtoType, UpdateMerchantDtoType } from '../dto/merchant.dto';
+import { Merchant } from '../models/merchant.model';
+import { CreateMerchantDtoType } from '../dto/merchant.dto';
 import { AppError } from '../utils/appError';
+import bcrypt from 'bcryptjs';
 
 export class MerchantRepository {
   async create(data: CreateMerchantDtoType): Promise<IMerchant> {
     try {
-      const merchant = await Merchant.create(data);
-      return merchant;
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(data.password, salt);
+
+      const merchant = new Merchant({
+        ...data,
+        password: hashedPassword,
+        businessType: data.businessType || 'restaurant',
+        businessAddress: data.address,
+        foodPreference: data.foodPreference || 'both',
+        role: 'merchant' as const,
+        isActive: true,
+        isVerified: false
+      });
+
+      return await merchant.save();
     } catch (error) {
+      if (error.code === 11000) {
+        throw new AppError('Email already registered', 400);
+      }
       throw new AppError('Error creating merchant', 500);
     }
   }
@@ -25,13 +43,20 @@ export class MerchantRepository {
     try {
       return await Merchant.findOne({ email }).select('+password');
     } catch (error) {
-      throw new AppError('Error finding merchant', 500);
+      throw new AppError('Error finding merchant by email', 500);
     }
   }
 
-  async update(id: string, data: UpdateMerchantDtoType): Promise<IMerchant | null> {
+  async update(id: string, data: Partial<IMerchant>): Promise<IMerchant | null> {
     try {
-      return await Merchant.findByIdAndUpdate(id, data, { new: true });
+      const merchant = await Merchant.findById(id);
+      if (!merchant) {
+        return null;
+      }
+
+      // Update fields
+      Object.assign(merchant, data);
+      return await merchant.save();
     } catch (error) {
       throw new AppError('Error updating merchant', 500);
     }
@@ -93,11 +118,13 @@ export class MerchantRepository {
 
   async updateVerificationStatus(id: string, isVerified: boolean): Promise<IMerchant | null> {
     try {
-      return await Merchant.findByIdAndUpdate(
-        id,
-        { isVerified },
-        { new: true }
-      );
+      const merchant = await Merchant.findById(id);
+      if (!merchant) {
+        return null;
+      }
+
+      merchant.isVerified = isVerified;
+      return await merchant.save();
     } catch (error) {
       throw new AppError('Error updating merchant verification status', 500);
     }
