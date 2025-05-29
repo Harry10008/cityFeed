@@ -5,19 +5,9 @@ import { AppError } from './appError';
 
 dotenv.config();
 
-// Debug logging for environment variables
-console.log('Email Configuration Check:');
-console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not Set');
-console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not Set');
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL ? 'Set' : 'Not Set');
-
 // Validate email configuration
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-  console.error('Email configuration is missing. Please check your .env file.');
-  console.error('Required environment variables:');
-  console.error('- EMAIL_USER: Your Gmail address');
-  console.error('- EMAIL_PASSWORD: Your Gmail app password');
-  console.error('- FRONTEND_URL: Your frontend application URL');
+  throw new AppError('Email configuration is missing. Please check your .env file.', 500);
 }
 
 const transporter = nodemailer.createTransport({
@@ -31,9 +21,7 @@ const transporter = nodemailer.createTransport({
 // Verify email configuration
 transporter.verify((error) => {
   if (error) {
-    console.error('Email configuration error:', error);
-  } else {
-    console.log('Email server is ready to send messages');
+    throw new AppError('Email configuration error', 500);
   }
 });
 
@@ -48,17 +36,7 @@ export const generateVerificationToken = (userId: string, role: string): string 
 
 // Send verification email
 export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
-  // Debug logging before check
-  console.log('Checking email configuration in sendVerificationEmail:');
-  console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not Set');
-  console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not Set');
-  console.log('FRONTEND_URL:', process.env.FRONTEND_URL ? 'Set' : 'Not Set');
-
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD || !process.env.FRONTEND_URL) {
-    console.error('Missing environment variables:');
-    if (!process.env.EMAIL_USER) console.error('- EMAIL_USER is missing');
-    if (!process.env.EMAIL_PASSWORD) console.error('- EMAIL_PASSWORD is missing');
-    if (!process.env.FRONTEND_URL) console.error('- FRONTEND_URL is missing');
     throw new AppError('Email configuration is incomplete. Please check your .env file.', 500);
   }
 
@@ -114,11 +92,8 @@ If you did not create an account with CityFeed, please ignore this email.
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent successfully to: ${email}`);
-    console.log('Message ID:', info.messageId);
+    await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Error sending verification email:', error);
     throw new AppError('Failed to send verification email. Please try again later.', 500);
   }
 };
