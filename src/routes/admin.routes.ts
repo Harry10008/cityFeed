@@ -1,15 +1,23 @@
-import { Router } from 'express';
+import express from 'express';
 import { AdminController } from '../controllers/admin.controller';
 import { protect, restrictTo } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validate';
-import { CreateAdminDto, EmailUpdateDto, LoginAdminDto, UpdateAdminDto } from '../dto/admin.dto';
+import { validateRequest } from '../middleware/validateRequest';
+import { 
+  createAdminSchema, 
+  updateAdminSchema, 
+  loginAdminSchema,
+  EmailUpdateDto,
+  VerifyEmailDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ChangePasswordDto
+} from '../dto/admin.dto';
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/appError';
 import jwt from 'jsonwebtoken';
 import { sendVerificationEmail } from '../utils/emailService';
-//import { validateRequest } from '../middleware/validateRequest';
 
-const router = Router();
+const router = express.Router();
 const adminController = new AdminController();
 
 /**
@@ -120,7 +128,7 @@ const adminController = new AdminController();
  *                   type: string
  *                   example: Validation error
  */
-router.post('/register', validate(CreateAdminDto), adminController.register);
+router.post('/register', validateRequest(createAdminSchema), adminController.register);
 
 /**
  * @swagger
@@ -149,7 +157,7 @@ router.post('/register', validate(CreateAdminDto), adminController.register);
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(LoginAdminDto), adminController.login);
+router.post('/login', validateRequest(loginAdminSchema), adminController.login);
 
 /**
  * @swagger
@@ -192,7 +200,7 @@ router.post('/login', validate(LoginAdminDto), adminController.login);
  *                   type: string
  *                   example: Invalid or expired token
  */
-router.get('/verify-email', adminController.verifyEmail);
+router.post('/verify-email', validateRequest(VerifyEmailDto), adminController.verifyEmail);
 
 /**
  * @swagger
@@ -243,6 +251,60 @@ router.post('/test-email', async (req: Request, res: Response, next: NextFunctio
     next(error);
   }
 });
+
+/**
+ * @swagger
+ * /api/admins/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Admins]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Password reset email sent
+ *       400:
+ *         description: Validation error
+ */
+router.post('/forgot-password', validateRequest(ForgotPasswordDto), adminController.forgotPassword);
+
+/**
+ * @swagger
+ * /api/admins/reset-password:
+ *   post:
+ *     summary: Reset password
+ *     tags: [Admins]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - password
+ *             properties:
+ *               token:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Validation error
+ */
+router.post('/reset-password', validateRequest(ResetPasswordDto), adminController.resetPassword);
 
 // Protected routes
 router.use(protect);
@@ -310,7 +372,7 @@ router.get('/profile', adminController.getProfile);
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.patch('/profile', validate(UpdateAdminDto), adminController.updateProfile);
+router.put('/profile', validateRequest(updateAdminSchema), adminController.updateProfile);
 
 /**
  * @swagger
@@ -340,6 +402,38 @@ router.patch('/profile', validate(UpdateAdminDto), adminController.updateProfile
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.patch('/profile/email', validate(EmailUpdateDto), adminController.updateEmail);
+router.put('/email', validateRequest(EmailUpdateDto), adminController.updateEmail);
+
+/**
+ * @swagger
+ * /api/admins/change-password:
+ *   patch:
+ *     summary: Change admin password
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+router.put('/change-password', validateRequest(ChangePasswordDto), adminController.changePassword);
 
 export default router; 

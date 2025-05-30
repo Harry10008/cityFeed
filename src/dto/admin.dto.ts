@@ -1,39 +1,35 @@
 import { z } from 'zod';
 
-// Request DTOs
-export const CreateAdminDto = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  address: z.string().min(5, 'Address must be at least 5 characters'),
-  role: z.enum(['admin', 'super_admin']).default('admin'),
-  permissions: z.array(z.string()).optional(),
-  isActive: z.boolean().default(true),
-  isVerified: z.boolean().default(false),
-  profileImage: z.string().optional()
-});
-
-export const UpdateAdminDto = z.object({
-  email: z.string().email('Invalid email format').optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
-  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
-  role: z.enum(['admin', 'super_admin']).optional(),
-  permissions: z.array(z.string()).optional(),
+// Base admin schema without role
+const baseAdminSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  fullName: z.string().min(2),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  profileImage: z.string().optional(),
   isActive: z.boolean().optional(),
   isVerified: z.boolean().optional(),
-  profileImage: z.string().optional(),
+  permissions: z.array(z.string()).optional(),
   resetToken: z.string().optional(),
   resetTokenExpires: z.date().optional()
 });
 
-export const LoginAdminDto = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+// Create admin schema with role
+export const createAdminSchema = baseAdminSchema.extend({
+  role: z.literal('admin')
 });
 
+// Update admin schema without role
+export const updateAdminSchema = baseAdminSchema.partial();
+
+// Login admin schema
+export const loginAdminSchema = z.object({
+  email: z.string().email(),
+  password: z.string()
+});
+
+// Request DTOs
 export const EmailUpdateDto = z.object({
   newEmail: z.string().email()
 });
@@ -66,9 +62,10 @@ export const AdminResponseDto = z.object({
   createdAt: z.date()
 });
 
-export type CreateAdminDtoType = z.infer<typeof CreateAdminDto>;
-export type UpdateAdminDtoType = z.infer<typeof UpdateAdminDto>;
-export type LoginAdminDtoType = z.infer<typeof LoginAdminDto>;
+// Types
+export type CreateAdminDtoType = z.infer<typeof createAdminSchema>;
+export type UpdateAdminDtoType = z.infer<typeof updateAdminSchema>;
+export type LoginAdminDtoType = z.infer<typeof loginAdminSchema>;
 export type EmailUpdateDtoType = z.infer<typeof EmailUpdateDto>;
 export type VerifyEmailDtoType = z.infer<typeof VerifyEmailDto>;
 export type ForgotPasswordDtoType = z.infer<typeof ForgotPasswordDto>;

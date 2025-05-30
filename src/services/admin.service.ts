@@ -2,8 +2,10 @@ import { AdminRepository } from '../repositories/admin.repository';
 import { CreateAdminDtoType, UpdateAdminDtoType, LoginAdminDtoType } from '../dto/admin.dto';
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { IAdmin } from '../models/admin.model';
-import { sendVerificationEmail } from '../utils/emailService';
+import { IAdmin } from '../interfaces/admin.interface';
+import { sendVerificationEmail, generateVerificationToken } from '../utils/emailService';
+import { Admin } from '../models/admin.model';
+import bcrypt from 'bcryptjs';
 
 export class AdminService {
   private adminRepository: AdminRepository;
@@ -15,15 +17,14 @@ export class AdminService {
   async register(data: CreateAdminDtoType): Promise<{ admin: IAdmin; token: string }> {
     try {
       // Check if email already exists
-      const existingAdmin = await this.findByEmail(data.email);
-      if (existingAdmin) {
+      const existingEmailAdmin = await Admin.findOne({ email: data.email });
+      if (existingEmailAdmin) {
         throw new AppError('Email already registered', 400);
       }
 
-      // Create admin with default values
+      // Create admin with default values for required fields
       const adminData = {
         ...data,
-        role: 'admin' as const,
         isActive: true,
         isVerified: false
       };
@@ -32,11 +33,7 @@ export class AdminService {
     
       // Generate tokens
       const token = this.generateToken(admin);
-      const verificationToken = jwt.sign(
-        { userId: admin._id, email: admin.email, role: admin.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
+      const verificationToken = generateVerificationToken(admin._id.toString(), admin.email, admin.role);
     
       // Send verification email
       try {
@@ -48,14 +45,19 @@ export class AdminService {
     
       return { admin, token };
     } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Error creating admin account', 500);
+      // Handle mongoose duplicate key error
+      if (error.code === 11000) {
+        if (error.keyPattern?.email) {
+          throw new AppError('Email already registered', 400);
+        }
+      }
+      throw error;
     }
   }
 
   async login(data: LoginAdminDtoType): Promise<{ admin: IAdmin; token: string }> {
-    // Find admin by email
-    const admin = await this.adminRepository.findByEmail(data.email);
+    // Find admin by email and explicitly select password field
+    const admin = await Admin.findOne({ email: data.email }).select('+password');
     if (!admin) {
       throw new AppError('Invalid credentials', 401);
     }
@@ -63,11 +65,7 @@ export class AdminService {
     // Check if email is verified
     if (!admin.isVerified) {
       // Resend verification email
-      const verificationToken = jwt.sign(
-        { userId: admin._id, email: admin.email, role: admin.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
+      const verificationToken = generateVerificationToken(admin._id.toString(), admin.email, admin.role);
       try {
         await sendVerificationEmail(admin.email, verificationToken);
       } catch (emailError) {
@@ -77,7 +75,7 @@ export class AdminService {
       throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
     }
 
-    // Check password
+    // Check password using the model's comparePassword method
     const isPasswordValid = await admin.comparePassword(data.password);
     if (!isPasswordValid) {
       throw new AppError('Invalid credentials', 401);
@@ -107,8 +105,7 @@ export class AdminService {
 
   private generateToken(admin: IAdmin): string {
     const payload = { 
-      userId: admin._id, 
-      email: admin.email,
+      id: admin._id.toString(), 
       role: admin.role,
       isVerified: admin.isVerified 
     };
@@ -158,11 +155,7 @@ export class AdminService {
     await admin.save();
 
     // Send verification email for new email
-    const verificationToken = jwt.sign(
-      { userId: admin._id, email: admin.email, role: admin.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
+    const verificationToken = generateVerificationToken(admin._id.toString(), admin.email, admin.role);
     
     try {
       await sendVerificationEmail(admin.email, verificationToken);
@@ -174,10 +167,37 @@ export class AdminService {
   }
 
   async findByEmail(email: string): Promise<IAdmin | null> {
-    return await this.adminRepository.findByEmail(email);
+    const admin = await Admin.findOne({ email }).select('+password');
+    return admin;
   }
 
   async findById(id: string): Promise<IAdmin | null> {
-    return await this.adminRepository.findById(id);
+    const admin = await Admin.findById(id).select('+password');
+    return admin;
+  }
+
+  async findByResetToken(token: string): Promise<IAdmin | null> {
+    const admin = await Admin.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: Date.now() }
+    });
+    return admin;
+  }
+
+  async update(id: string, data: UpdateAdminDtoType): Promise<IAdmin | null> {
+    const admin = await Admin.findById(id);
+    if (!admin) {
+      return null;
+    }
+
+    // Update fields
+    Object.assign(admin, data);
+    await admin.save();
+
+    return admin;
+  }
+
+  async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, hashedPassword);
   }
 } 

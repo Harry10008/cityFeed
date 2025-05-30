@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { MerchantService } from '../services/merchant.service';
-import { LoginMerchantDto } from '../dto/merchant.dto';
-import { verifyToken } from '../utils/emailService';
 import { AppError } from '../utils/appError';
+import { CreateMerchantDto, LoginMerchantDto } from '../dto/merchant.dto';
+import { verifyToken } from '../utils/emailService';
 import { AuthRequest } from '../middleware/auth';
 
 export class MerchantController {
@@ -14,20 +14,7 @@ export class MerchantController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Get image paths from uploaded files
-      const businessImages = (req.files as Express.Multer.File[])?.map(file => `/uploads/merchants/${file.filename}`) || [];
-
-      // Validate number of images
-      if (businessImages.length < 3 || businessImages.length > 10) {
-        throw new AppError('You must provide between 3 and 10 business images', 400);
-      }
-
-      // Add image paths to request body
-      const merchantData = {
-        ...req.body,
-        businessImages
-      };
-
+      const merchantData = CreateMerchantDto.parse(req.body);
       const { merchant, token } = await this.merchantService.register(merchantData);
       
       res.status(201).json({
@@ -36,9 +23,7 @@ export class MerchantController {
           merchant: {
             id: merchant._id,
             email: merchant.email,
-            fullName: merchant.fullName,
-            businessName: merchant.businessName,
-            businessImages: merchant.businessImages || []
+            businessName: merchant.businessName
           },
           token
         },
@@ -57,10 +42,13 @@ export class MerchantController {
       }
   
       // Verify the token
-      const { userId } = verifyToken(token);
+      const decoded = verifyToken(token);
+      if (!decoded || !decoded.id) {
+        throw new AppError('Invalid token', 400);
+      }
   
       // Update merchant verification status
-      const merchant = await this.merchantService.verifyMerchant(userId);
+      const merchant = await this.merchantService.verifyMerchant(decoded.id);
       
       res.status(200).json({
         status: 'success',
@@ -85,9 +73,7 @@ export class MerchantController {
           merchant: {
             id: merchant._id,
             email: merchant.email,
-            fullName: merchant.fullName,
-            businessName: merchant.businessName,
-            businessImages: merchant.businessImages || []
+            businessName: merchant.businessName
           },
           token
         }
@@ -99,11 +85,11 @@ export class MerchantController {
 
   getProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.merchant?.id) {
+      if (!req.user?.id) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const merchant = await this.merchantService.getProfile(req.merchant.id);
+      const merchant = await this.merchantService.getProfile(req.user.id);
       
       res.status(200).json({
         status: 'success',
@@ -118,28 +104,11 @@ export class MerchantController {
 
   updateProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.merchant?.id) {
+      if (!req.user?.id) {
         throw new AppError('Not authenticated', 401);
       }
 
-      // Get image URLs from uploaded files
-      const businessImages = (req.files as Express.Multer.File[])?.map(file => `/uploads/merchants/${file.filename}`) || [];
-      const profileImage = (req.file as Express.Multer.File)?.filename 
-        ? `/uploads/merchants/${(req.file as Express.Multer.File).filename}`
-        : undefined;
-
-      // If new business images are uploaded, validate the count
-      if (businessImages.length > 0 && (businessImages.length < 3 || businessImages.length > 10)) {
-        throw new AppError('You must provide between 3 and 10 business images', 400);
-      }
-
-      const updateData = {
-        ...req.body,
-        ...(businessImages.length > 0 && { businessImages }),
-        ...(profileImage && { profileImage })
-      };
-
-      const merchant = await this.merchantService.updateProfile(req.merchant.id, updateData);
+      const merchant = await this.merchantService.updateProfile(req.user.id, req.body);
       
       res.status(200).json({
         status: 'success',
@@ -155,7 +124,7 @@ export class MerchantController {
   updateEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user?._id) {
-        throw new AppError('Merchant not authenticated', 401);
+        throw new AppError('User not authenticated', 401);
       }
 
       const { newEmail } = req.body;

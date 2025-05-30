@@ -3,7 +3,7 @@ import { CreateMerchantDtoType, UpdateMerchantDtoType, LoginMerchantDtoType } fr
 import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IMerchant } from '../interfaces/merchant.interface';
-import { sendVerificationEmail } from '../utils/emailService';
+import { sendVerificationEmail, generateVerificationToken } from '../utils/emailService';
 import { Merchant } from '../models/merchant.model';
 import bcrypt from 'bcryptjs';
 
@@ -37,11 +37,7 @@ export class MerchantService {
     
       // Generate tokens
       const token = this.generateToken(merchant);
-      const verificationToken = jwt.sign(
-        { userId: merchant._id, email: merchant.email, role: merchant.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
+      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
     
       // Send verification email
       try {
@@ -73,11 +69,7 @@ export class MerchantService {
     // Check if email is verified
     if (!merchant.isVerified) {
       // Resend verification email
-      const verificationToken = jwt.sign(
-        { userId: merchant._id, email: merchant.email, role: merchant.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
+      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
       try {
         await sendVerificationEmail(merchant.email, verificationToken);
       } catch (emailError) {
@@ -117,7 +109,7 @@ export class MerchantService {
 
   private generateToken(merchant: IMerchant): string {
     const payload = { 
-      userId: merchant._id, 
+      id: merchant._id.toString(), 
       role: merchant.role,
       isVerified: merchant.isVerified 
     };
@@ -167,11 +159,7 @@ export class MerchantService {
     await merchant.save();
 
     // Send verification email for new email
-    const verificationToken = jwt.sign(
-      { userId: merchant._id, email: merchant.email, role: merchant.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
+    const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
     
     try {
       await sendVerificationEmail(merchant.email, verificationToken);

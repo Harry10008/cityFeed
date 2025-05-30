@@ -1,57 +1,39 @@
-import mongoose, { Document, Schema, Types } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
-
-export interface IAdmin extends Document {
-  _id: Types.ObjectId;
-  fullName: string;
-  email: string;
-  password: string;
-  phone: string;
-  address: string;
-  role: string;
-  permissions: string[];
-  isActive: boolean;
-  isVerified: boolean;
-  profileImage?: string;
-  resetToken?: string;
-  resetTokenExpires?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
+import { IAdmin } from '../interfaces/admin.interface';
 
 const adminSchema = new Schema<IAdmin>({
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters long']
+  },
   fullName: {
     type: String,
     required: [true, 'Full name is required'],
     trim: true
   },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true
-  },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters long'],
-    select: false
-  },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
-    minlength: [10, 'Phone number must be at least 10 digits']
+    trim: true
   },
   address: {
     type: String,
-    required: [true, 'Address is required'],
-    minlength: [5, 'Address must be at least 5 characters long']
+    trim: true
+  },
+  profileImage: {
+    type: String
   },
   role: {
     type: String,
-    enum: ['admin', 'super_admin'],
+    enum: ['admin'],
     default: 'admin'
   },
   permissions: [{
@@ -65,7 +47,6 @@ const adminSchema = new Schema<IAdmin>({
     type: Boolean,
     default: false
   },
-  profileImage: String,
   resetToken: String,
   resetTokenExpires: Date
 }, {
@@ -80,8 +61,8 @@ adminSchema.pre('save', async function(next) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (error) {
+    next(error as Error);
   }
 });
 
@@ -90,8 +71,7 @@ adminSchema.methods.comparePassword = async function(candidatePassword: string):
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    console.error('Error comparing passwords:', error);
-    return false;
+    throw error;
   }
 };
 

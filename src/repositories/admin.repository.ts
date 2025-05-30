@@ -1,30 +1,28 @@
-import { Admin, IAdmin } from '../models/admin.model';
-import { AppError } from '../utils/appError';
+import { Admin } from '../models/admin.model';
+import { IAdmin } from '../interfaces/admin.interface';
+//import { AppError } from '../utils/appError';
 
 export class AdminRepository {
   async create(data: Partial<IAdmin>): Promise<IAdmin> {
-    try {
-      const admin = await Admin.create(data);
-      return admin;
-    } catch (error) {
-      throw new AppError('Error creating admin', 500);
-    }
+    const admin = new Admin(data);
+    await admin.save();
+    return admin;
   }
 
   async findById(id: string): Promise<IAdmin | null> {
-    return Admin.findById(id);
+    return await Admin.findById(id);
   }
 
   async findByEmail(email: string): Promise<IAdmin | null> {
-    return Admin.findOne({ email }).select('+password');
+    return await Admin.findOne({ email });
   }
 
   async findAll(): Promise<IAdmin[]> {
-    return Admin.find();
+    return await Admin.find();
   }
 
   async update(id: string, data: Partial<IAdmin>): Promise<IAdmin | null> {
-    return Admin.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    return await Admin.findByIdAndUpdate(id, data, { new: true });
   }
 
   async updatePermissions(id: string, permissions: string[]): Promise<IAdmin | null> {
@@ -36,6 +34,21 @@ export class AdminRepository {
   }
 
   async delete(id: string): Promise<IAdmin | null> {
-    return Admin.findByIdAndDelete(id);
+    return await Admin.findByIdAndDelete(id);
+  }
+
+  async findActive(): Promise<IAdmin[]> {
+    return await Admin.find({ isActive: true });
+  }
+
+  async findVerified(): Promise<IAdmin[]> {
+    return await Admin.find({ isVerified: true });
+  }
+
+  async findByResetToken(token: string): Promise<IAdmin | null> {
+    return await Admin.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: Date.now() }
+    });
   }
 } 
