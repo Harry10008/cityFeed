@@ -26,9 +26,9 @@ transporter.verify((error) => {
 });
 
 // Generate verification token
-export const generateVerificationToken = (userId: string, role: string): string => {
+export const generateVerificationToken = (userId: string, email: string, role: string): string => {
   return jwt.sign(
-    { userId, role },
+    { id: userId, email, role },
     process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '24h' }
   );
@@ -99,10 +99,10 @@ If you did not create an account with CityFeed, please ignore this email.
 };
 
 // Verify token
-export const verifyToken = (token: string): { userId: string; role: string } => {
+export const verifyToken = (token: string): { id: string; email: string; role: string } => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string; role: string };
-    return { userId: decoded.userId, role: decoded.role };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { id: string; email: string; role: string };
+    return decoded;
   } catch (error) {
     throw new AppError('Invalid or expired token', 400);
   }

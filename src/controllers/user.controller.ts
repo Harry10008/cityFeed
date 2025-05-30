@@ -44,12 +44,12 @@ export class UserController {
   
       // Verify the token
       const decoded = verifyToken(token);
-      if (!decoded || !decoded.userId) {
+      if (!decoded || !decoded.id) {
         throw new AppError('Invalid token', 400);
       }
   
       // Update user verification status
-      const user = await this.userService.verifyUser(decoded.userId);
+      const user = await this.userService.verifyUser(decoded.id);
       
       res.status(200).json({
         status: 'success',
