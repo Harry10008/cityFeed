@@ -15,6 +15,8 @@ import couponRoutes from '../src/routes/coupon.routes';
 import reviewRoutes from '../src/routes/review.routes';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from '../src/config/swagger';
+import walletRoutes from '../src/routes/wallet.routes';
+import transactionRoutes from '../src/routes/transaction.routes';
 
 // Load environment variables
 config();
@@ -78,6 +80,8 @@ const initializeApp = async () => {
     app.use('/api/admins', adminRoutes);
     app.use('/api/coupons', couponRoutes);
     app.use('/api/reviews', reviewRoutes);
+    app.use('/api/wallet', walletRoutes);
+    app.use('/api/transactions', transactionRoutes);
 
     // Error handling
     app.use(errorHandler);
