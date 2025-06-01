@@ -10,6 +10,92 @@ const merchantController = new MerchantController();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Address:
+ *       type: object
+ *       required:
+ *         - street
+ *         - line1
+ *         - pincode
+ *       properties:
+ *         street:
+ *           type: string
+ *           description: Street name
+ *         line1:
+ *           type: string
+ *           description: Primary address line
+ *         line2:
+ *           type: string
+ *           description: Secondary address line (optional)
+ *         pincode:
+ *           type: string
+ *           pattern: '^\d{6}$'
+ *           description: 6-digit pincode
+ *     Merchant:
+ *       type: object
+ *       required:
+ *         - businessName
+ *         - businessAddress
+ *         - phone
+ *         - email
+ *         - password
+ *         - businessImages
+ *         - businessType
+ *         - businessDescription
+ *       properties:
+ *         businessName:
+ *           type: string
+ *           minLength: 2
+ *           description: Name of the business
+ *         businessAddress:
+ *           $ref: '#/components/schemas/Address'
+ *         offers:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: objectId
+ *           description: Array of offer IDs
+ *         phone:
+ *           type: string
+ *           minLength: 10
+ *           description: Phone number (minimum 10 digits)
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: Merchant's email address
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: Password (minimum 6 characters)
+ *         businessImages:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: binary
+ *           minItems: 3
+ *           maxItems: 10
+ *           description: Business images (3-10 images required)
+ *         businessType:
+ *           type: string
+ *           description: Type of business (e.g., restaurant, cafe)
+ *           default: restaurant
+ *         businessDescription:
+ *           type: string
+ *           minLength: 50
+ *           description: Description of the business (minimum 50 characters)
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the merchant account was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the merchant account was last updated
+ */
+
+/**
+ * @swagger
  * tags:
  *   name: Merchants
  *   description: Merchant management endpoints
@@ -28,15 +114,42 @@ const merchantController = new MerchantController();
  *           schema:
  *             type: object
  *             required:
+ *               - businessName
+ *               - businessAddress
+ *               - phone
  *               - email
  *               - password
- *               - fullName
- *               - phone
- *               - address
- *               - businessName
  *               - businessDescription
  *               - businessImages
  *             properties:
+ *               businessName:
+ *                 type: string
+ *                 minLength: 2
+ *                 description: Name of the business
+ *               businessAddress:
+ *                 type: object
+ *                 required:
+ *                   - street
+ *                   - line1
+ *                   - pincode
+ *                 properties:
+ *                   street:
+ *                     type: string
+ *                     description: Street name
+ *                   line1:
+ *                     type: string
+ *                     description: Primary address line
+ *                   line2:
+ *                     type: string
+ *                     description: Secondary address line (optional)
+ *                   pincode:
+ *                     type: string
+ *                     pattern: '^\d{6}$'
+ *                     description: 6-digit pincode
+ *               phone:
+ *                 type: string
+ *                 minLength: 10
+ *                 description: Phone number (minimum 10 digits)
  *               email:
  *                 type: string
  *                 format: email
@@ -45,21 +158,6 @@ const merchantController = new MerchantController();
  *                 type: string
  *                 minLength: 6
  *                 description: Password (minimum 6 characters)
- *               fullName:
- *                 type: string
- *                 minLength: 2
- *                 description: Merchant's full name
- *               phone:
- *                 type: string
- *                 minLength: 10
- *                 description: Phone number (minimum 10 digits)
- *               address:
- *                 type: string
- *                 minLength: 5
- *                 description: Merchant's address
- *               businessName:
- *                 type: string
- *                 description: Name of the business
  *               businessDescription:
  *                 type: string
  *                 minLength: 50
@@ -76,11 +174,11 @@ const merchantController = new MerchantController();
  *                 type: string
  *                 description: Type of business (e.g., restaurant, cafe)
  *                 default: restaurant
- *               foodPreference:
- *                 type: string
- *                 enum: [veg, nonveg, both]
- *                 description: Food preference of the business
- *                 default: both
+ *               offers:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of offer IDs
  *     responses:
  *       201:
  *         description: Merchant registered successfully
@@ -96,20 +194,7 @@ const merchantController = new MerchantController();
  *                   type: object
  *                   properties:
  *                     merchant:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: string
- *                         email:
- *                           type: string
- *                         fullName:
- *                           type: string
- *                         businessName:
- *                           type: string
- *                         businessImages:
- *                           type: array
- *                           items:
- *                             type: string
+ *                       $ref: '#/components/schemas/Merchant'
  *                     token:
  *                       type: string
  *                 message:
@@ -145,9 +230,25 @@ router.post('/register',
  *                 format: email
  *               password:
  *                 type: string
+ *                 minLength: 6
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchant:
+ *                       $ref: '#/components/schemas/Merchant'
+ *                     token:
+ *                       type: string
  *       401:
  *         description: Invalid credentials
  */
@@ -171,6 +272,22 @@ router.post('/login',
  *     responses:
  *       200:
  *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Email verified successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchant:
+ *                       $ref: '#/components/schemas/Merchant'
  *       400:
  *         description: Invalid or expired token
  */
@@ -188,22 +305,29 @@ router.get('/verify-email', merchantController.verifyEmail);
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: foodPreference
+ *         schema:
+ *           type: string
+ *           enum: [veg, nonveg, both]
  *     responses:
  *       200:
  *         description: List of merchants in the category
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   businessName:
- *                     type: string
- *                   category:
- *                     type: string
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchants:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Merchant'
  */
 router.get('/category/:category', merchantController.getMerchants);
 
@@ -221,6 +345,19 @@ router.use(authenticateMerchant);
  *     responses:
  *       200:
  *         description: Merchant profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchant:
+ *                       $ref: '#/components/schemas/Merchant'
  */
 router.get('/profile', merchantController.getProfile);
 
@@ -237,29 +374,23 @@ router.get('/profile', merchantController.getProfile);
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             properties:
- *               fullName:
- *                 type: string
- *               phone:
- *                 type: string
- *               address:
- *                 type: string
- *               businessName:
- *                 type: string
- *               businessDescription:
- *                 type: string
- *               businessImages:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *               profileImage:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/Merchant'
  *     responses:
  *       200:
  *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchant:
+ *                       $ref: '#/components/schemas/Merchant'
  */
 router.patch('/profile',
   uploadBusinessImages,
@@ -268,6 +399,46 @@ router.patch('/profile',
   merchantController.updateProfile
 );
 
+/**
+ * @swagger
+ * /api/merchants/email:
+ *   patch:
+ *     summary: Update merchant email
+ *     tags: [Merchants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newEmail
+ *             properties:
+ *               newEmail:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Email updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Email updated successfully. Please check your new email for verification.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     merchant:
+ *                       $ref: '#/components/schemas/Merchant'
+ */
 router.patch('/email',
   validate(UpdateMerchantDto),
   merchantController.updateEmail

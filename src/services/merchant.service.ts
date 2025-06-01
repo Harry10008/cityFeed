@@ -6,6 +6,7 @@ import { IMerchant } from '../interfaces/merchant.interface';
 import { sendVerificationEmail, generateVerificationToken } from '../utils/emailService';
 import { Merchant } from '../models/merchant.model';
 import bcrypt from 'bcryptjs';
+import { Types } from 'mongoose';
 
 export class MerchantService {
   private merchantRepository: MerchantRepository;
@@ -22,34 +23,39 @@ export class MerchantService {
         throw new AppError('Email already registered', 400);
       }
 
-      // Create merchant with default values for required fields
+      // Create merchant with default values
       const merchantData = {
         ...data,
         businessType: data.businessType || 'restaurant',
-        businessAddress: data.address,
-        foodPreference: data.foodPreference || 'both',
         role: 'merchant' as const,
         isActive: true,
-        isVerified: false
+        isVerified: false,
+        businessAddress: {
+          street: data.businessAddress.street,
+          line1: data.businessAddress.line1,
+          line2: data.businessAddress.line2,
+          pincode: data.businessAddress.pincode
+        },
+        // Keep offers as string array for DTO compatibility
+        offers: data.offers || []
       };
 
       const merchant = await this.merchantRepository.create(merchantData);
+      const merchantObj = merchant.toObject();
     
       // Generate tokens
-      const token = this.generateToken(merchant);
-      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
+      const token = this.generateToken(merchantObj);
+      const verificationToken = generateVerificationToken(merchantObj._id.toString(), merchantObj.email, merchantObj.role);
     
       // Send verification email
       try {
-        await sendVerificationEmail(merchant.email, verificationToken);
+        await sendVerificationEmail(merchantObj.email, verificationToken);
       } catch (emailError) {
         console.error('Error sending verification email:', emailError);
-        // Don't throw error here, just log it. Merchant can request verification email later
       }
     
-      return { merchant, token };
+      return { merchant: merchantObj, token };
     } catch (error) {
-      // Handle mongoose duplicate key error
       if (error.code === 11000) {
         if (error.keyPattern?.email) {
           throw new AppError('Email already registered', 400);
@@ -60,15 +66,12 @@ export class MerchantService {
   }
 
   async login(data: LoginMerchantDtoType): Promise<{ merchant: IMerchant; token: string }> {
-    // Find merchant by email and explicitly select password field
     const merchant = await Merchant.findOne({ email: data.email }).select('+password');
     if (!merchant) {
       throw new AppError('Invalid credentials', 401);
     }
 
-    // Check if email is verified
     if (!merchant.isVerified) {
-      // Resend verification email
       const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
       try {
         await sendVerificationEmail(merchant.email, verificationToken);
@@ -79,16 +82,14 @@ export class MerchantService {
       throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
     }
 
-    // Check password using the model's comparePassword method
     const isPasswordValid = await merchant.comparePassword(data.password);
     if (!isPasswordValid) {
       throw new AppError('Invalid credentials', 401);
     }
 
-    // Generate JWT token
-    const token = this.generateToken(merchant);
-
-    return { merchant, token };
+    const merchantObj = merchant.toObject();
+    const token = this.generateToken(merchantObj);
+    return { merchant: merchantObj, token };
   }
 
   async getProfile(merchantId: string): Promise<IMerchant> {
@@ -96,15 +97,25 @@ export class MerchantService {
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
-    return merchant;
+    return merchant.toObject();
   }
 
   async updateProfile(merchantId: string, data: UpdateMerchantDtoType): Promise<IMerchant> {
-    const merchant = await this.merchantRepository.update(merchantId, data);
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+
+    // Convert offer IDs to ObjectIds if present
+    const updateData = {
+      ...data,
+      offers: data.offers ? data.offers.map((id: string) => new Types.ObjectId(id)) : undefined
+    };
+    
+    const merchant = await this.merchantRepository.update(merchantId, updateData);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
-    return merchant;
+    return merchant.toObject();
   }
 
   private generateToken(merchant: IMerchant): string {
@@ -132,33 +143,28 @@ export class MerchantService {
     merchant.isVerified = true;
     await merchant.save();
     
-    return merchant;
+    return merchant.toObject();
   }
 
   async updateEmail(merchantId: string, newEmail: string): Promise<IMerchant> {
-    // Check if merchant exists and is verified
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) {
       throw new AppError('Merchant not found', 404);
     }
     
-    // Check if merchant's email is verified
     if (!merchant.isVerified) {
       throw new AppError('Please verify your current email before updating to a new one', 400);
     }
     
-    // Check if new email is already registered
     const existingMerchant = await this.merchantRepository.findByEmail(newEmail);
     if (existingMerchant) {
       throw new AppError('Email already registered', 400);
     }
 
-    // Update email
     merchant.email = newEmail;
-    merchant.isVerified = false; // Require verification for new email
+    merchant.isVerified = false;
     await merchant.save();
 
-    // Send verification email for new email
     const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
     
     try {
@@ -167,7 +173,7 @@ export class MerchantService {
       console.error('Error sending verification email:', emailError);
     }
 
-    return merchant;
+    return merchant.toObject();
   }
 
   async findByEmail(email: string): Promise<IMerchant | null> {

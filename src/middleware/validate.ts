@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AnyZodObject, ZodError } from 'zod';
-import { AppError } from '../utils/appError';
 
 export const validate = (schema: AnyZodObject) => {
-  return async (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Log the request body for debugging
       console.log('Request body:', req.body);
@@ -15,16 +14,35 @@ export const validate = (schema: AnyZodObject) => {
         console.log('Files:', req.files);
       }
       
+      // Parse address if it's a string
+      if (req.body.address && typeof req.body.address === 'string') {
+        try {
+          req.body.address = JSON.parse(req.body.address);
+        } catch (error) {
+          res.status(400).json({
+            status: 'error',
+            message: 'Invalid address format. Address must be a valid JSON object.'
+          });
+          return;
+        }
+      }
+      
       // Parse and validate the request body
       await schema.parseAsync(req.body);
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const errorMessage = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
-        next(new AppError(errorMessage, 400));
-      } else {
-        next(error);
+        res.status(400).json({
+          status: 'error',
+          message: 'Validation error',
+          errors: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          }))
+        });
+        return;
       }
+      next(error);
     }
   };
 };

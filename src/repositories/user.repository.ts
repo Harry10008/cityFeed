@@ -11,7 +11,7 @@ export class UserRepository {
 
   async findById(id: string): Promise<IUser | null> {
     try {
-      return await User.findById(id);
+      return await User.findById(id).select('+password');
     } catch (error) {
       throw new AppError('Error finding user', 500);
     }
@@ -22,6 +22,17 @@ export class UserRepository {
       return await User.findOne({ email }).select('+password');;
     } catch (error) {
       throw new AppError('Error finding user', 500);
+    }
+  }
+
+  async findByResetToken(token: string): Promise<IUser | null> {
+    try {
+      return await User.findOne({
+        resetToken: token,
+        resetTokenExpires: { $gt: Date.now() }
+      }).select('+password +resetToken +resetTokenExpires');
+    } catch (error) {
+      throw new AppError('Error finding user by reset token', 500);
     }
   }
 

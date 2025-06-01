@@ -2,6 +2,7 @@ import { IMerchant } from '../interfaces/merchant.interface';
 import { Merchant } from '../models/merchant.model';
 import { CreateMerchantDtoType } from '../dto/merchant.dto';
 import { AppError } from '../utils/appError';
+import { Types } from 'mongoose';
 
 export class MerchantRepository {
   async create(data: CreateMerchantDtoType): Promise<IMerchant> {
@@ -9,12 +10,11 @@ export class MerchantRepository {
       const merchant = new Merchant({
         ...data,
         businessType: data.businessType || 'restaurant',
-        businessAddress: data.address,
-        foodPreference: data.foodPreference || 'both',
         role: 'merchant' as const,
         isActive: true,
         isVerified: false,
-        businessImages: data.businessImages || []
+        businessImages: data.businessImages || [],
+        offers: Array.isArray(data.offers) ? data.offers.map((id: string) => new Types.ObjectId(id)) : []
       });
 
       return await merchant.save();

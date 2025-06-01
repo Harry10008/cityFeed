@@ -4,6 +4,7 @@ import { AppError } from '../utils/appError';
 import { CreateMerchantDto, LoginMerchantDto } from '../dto/merchant.dto';
 import { verifyToken } from '../utils/emailService';
 import { AuthRequest } from '../middleware/auth';
+import { z } from 'zod';
 
 export class MerchantController {
   private merchantService: MerchantService;
@@ -14,22 +15,79 @@ export class MerchantController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const merchantData = CreateMerchantDto.parse(req.body);
-      const { merchant, token } = await this.merchantService.register(merchantData);
+      console.log('Raw request body:', req.body);
+
+      // Parse nested objects and arrays from form data
+      const parsedData = { ...req.body };
+
+      // Handle businessAddress - always parse if it's a string
+      if (typeof req.body.businessAddress === 'string') {
+        try {
+          const parsedAddress = JSON.parse(req.body.businessAddress);
+          parsedData.businessAddress = parsedAddress;
+        } catch (error) {
+          console.error('Business address parsing error:', error);
+          throw new AppError('Invalid business address format. Please provide a valid JSON object with street, line1, and pincode', 400);
+        }
+      }
+
+      // Handle offers - always parse if it's a string
+      if (typeof req.body.offers === 'string') {
+        try {
+          if (req.body.offers === '') {
+            parsedData.offers = [];
+          } else {
+            const parsedOffers = JSON.parse(req.body.offers);
+            parsedData.offers = parsedOffers;
+          }
+        } catch (error) {
+          console.error('Offers parsing error:', error);
+          throw new AppError('Invalid offers format. Please provide a valid JSON array of offer IDs', 400);
+        }
+      }
+
+      // Handle businessImages from files
+      if (req.files && Array.isArray(req.files)) {
+        parsedData.businessImages = req.files.map((file: any) => file.path);
+      }
+
+      console.log('Parsed data before validation:', parsedData);
+
+      // Validate the parsed data
+      const validatedData = CreateMerchantDto.parse(parsedData);
+      console.log('Validated data:', validatedData);
+
+      const { merchant, token } = await this.merchantService.register(validatedData);
       
       res.status(201).json({
         status: 'success',
         data: {
           merchant: {
             id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
             email: merchant.email,
-            businessName: merchant.businessName
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
           },
           token
         },
         message: 'Registration successful. Please check your email to verify your account.'
       });
     } catch (error) {
+      console.error('Registration error:', error);
+      if (error instanceof z.ZodError) {
+        // Format Zod validation errors
+        const formattedErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        return next(new AppError('Validation error', 400, formattedErrors));
+      }
       next(error);
     }
   };
@@ -41,20 +99,29 @@ export class MerchantController {
         throw new AppError('Verification token is required', 400);
       }
   
-      // Verify the token
       const decoded = verifyToken(token);
       if (!decoded || !decoded.id) {
         throw new AppError('Invalid token', 400);
       }
   
-      // Update merchant verification status
       const merchant = await this.merchantService.verifyMerchant(decoded.id);
       
       res.status(200).json({
         status: 'success',
         message: 'Email verified successfully',
         data: {
-          merchant
+          merchant: {
+            id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
+            email: merchant.email,
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
+          }
         }
       });
     } catch (error) {
@@ -72,8 +139,15 @@ export class MerchantController {
         data: {
           merchant: {
             id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
             email: merchant.email,
-            businessName: merchant.businessName
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
           },
           token
         }
@@ -94,7 +168,18 @@ export class MerchantController {
       res.status(200).json({
         status: 'success',
         data: {
-          merchant
+          merchant: {
+            id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
+            email: merchant.email,
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
+          }
         }
       });
     } catch (error) {
@@ -113,7 +198,18 @@ export class MerchantController {
       res.status(200).json({
         status: 'success',
         data: {
-          merchant
+          merchant: {
+            id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
+            email: merchant.email,
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
+          }
         }
       });
     } catch (error) {
@@ -137,7 +233,20 @@ export class MerchantController {
       res.status(200).json({
         status: 'success',
         message: 'Email updated successfully. Please check your new email for verification.',
-        data: { merchant }
+        data: {
+          merchant: {
+            id: merchant._id,
+            businessName: merchant.businessName,
+            businessAddress: merchant.businessAddress,
+            email: merchant.email,
+            phone: merchant.phone,
+            businessType: merchant.businessType,
+            businessDescription: merchant.businessDescription,
+            businessImages: merchant.businessImages,
+            isActive: merchant.isActive,
+            isVerified: merchant.isVerified
+          }
+        }
       });
     } catch (error) {
       next(error);

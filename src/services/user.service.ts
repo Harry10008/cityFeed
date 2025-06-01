@@ -4,7 +4,8 @@ import { AppError } from '../utils/appError';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { IUser } from '../interfaces/user.interface';
 import bcrypt from 'bcryptjs';
-import { sendVerificationEmail } from '../utils/emailService';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService';
+import crypto from 'crypto';
 
 export class UserService {
   private userRepository: UserRepository;
@@ -190,5 +191,81 @@ export class UserService {
 
   async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return await bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      throw new AppError('No user found with this email address', 404);
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour
+
+    // Save reset token to user
+    await this.userRepository.update(user._id.toString(), {
+      resetToken,
+      resetTokenExpires
+    } as Partial<IUser>);
+
+    // Send reset email
+    try {
+      await sendPasswordResetEmail(user.email, resetToken);
+    } catch (error) {
+      throw new AppError('Error sending password reset email', 500);
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.userRepository.findByResetToken(token);
+    if (!user) {
+      throw new AppError('Invalid or expired reset token', 400);
+    }
+
+    if (user.resetTokenExpires && user.resetTokenExpires < new Date()) {
+      throw new AppError('Reset token has expired', 400);
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await this.userRepository.update(user._id.toString(), {
+      password: hashedPassword,
+      resetToken: undefined,
+      resetTokenExpires: undefined
+    } as Partial<IUser>);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (!user.password) {
+      throw new AppError('User password not found', 500);
+    }
+
+    // Verify current password
+    const isPasswordValid = await this.verifyPassword(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new AppError('Current password is incorrect', 401);
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await this.userRepository.update(userId, { password: hashedPassword });
+  }
+
+  async updateMembershipType(userId: string, membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum'): Promise<IUser> {
+    const user = await this.userRepository.updateMembershipType(userId, membershipType);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    return user;
   }
 } 

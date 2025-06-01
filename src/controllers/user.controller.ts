@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
 import { AppError } from '../utils/appError';
-import { CreateUserDto, LoginUserDto } from '../dto/user.dto';
+import { CreateUserDto, LoginUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/user.dto';
 import { verifyToken } from '../utils/emailService';
 import { AuthRequest } from '../middleware/auth';
 
@@ -23,8 +23,15 @@ export class UserController {
         data: {
           user: {
             id: user._id,
+            name: user.name,
             email: user.email,
-            fullName: user.fullName
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address
           },
           token
         },
@@ -55,7 +62,18 @@ export class UserController {
         status: 'success',
         message: 'Email verified successfully',
         data: {
-          user
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address
+          }
         }
       });
     } catch (error) {
@@ -73,8 +91,15 @@ export class UserController {
         data: {
           user: {
             id: user._id,
+            name: user.name,
             email: user.email,
-            fullName: user.fullName
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address
           },
           token
         }
@@ -95,7 +120,19 @@ export class UserController {
       res.status(200).json({
         status: 'success',
         data: {
-          user
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address,
+            profileImage: user.profileImage
+          }
         }
       });
     } catch (error) {
@@ -114,7 +151,19 @@ export class UserController {
       res.status(200).json({
         status: 'success',
         data: {
-          user
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address,
+            profileImage: user.profileImage
+          }
         }
       });
     } catch (error) {
@@ -138,7 +187,102 @@ export class UserController {
       res.status(200).json({
         status: 'success',
         message: 'Email updated successfully. Please check your new email for verification.',
-        data: { user }
+        data: {
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = ForgotPasswordDto.parse(req.body);
+      await this.userService.forgotPassword(email);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Password reset instructions sent to your email'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token, password } = ResetPasswordDto.parse(req.body);
+      await this.userService.resetPassword(token, password);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Password has been reset successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { currentPassword, newPassword } = ChangePasswordDto.parse(req.body);
+      await this.userService.changePassword(req.user.id, currentPassword, newPassword);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Password changed successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateMembershipType = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user?.id) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { membershipType } = req.body;
+      if (!['basic', 'bronze', 'silver', 'gold', 'platinum'].includes(membershipType)) {
+        throw new AppError('Invalid membership type', 400);
+      }
+
+      const user = await this.userService.updateMembershipType(req.user.id, membershipType);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            walletCoins: user.walletCoins,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            membershipType: user.membershipType,
+            address: user.address
+          }
+        },
+        message: 'Membership type updated successfully'
       });
     } catch (error) {
       next(error);

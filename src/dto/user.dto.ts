@@ -4,105 +4,34 @@ import { z } from 'zod';
 //const passwordSchema = z.string().min(6, 'Password must be at least 6 characters long');
 //const emailSchema = z.string().email('Invalid email address');
 
+// Address schema
+const addressSchema = z.object({
+  street: z.string().min(5, 'Street address must be at least 5 characters'),
+  city: z.string().min(2, 'City must be at least 2 characters'),
+  pinCode: z.string().regex(/^\d{6}$/, 'PIN code must be 6 digits')
+}).strict();
+
 // Request DTOs
 export const CreateUserDto = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  address: z.string().min(5, 'Address must be at least 5 characters'),
-  gender: z.enum(['M', 'F', 'O'], {
-    errorMap: () => ({ message: 'Gender must be M, F, or O' })
-  }),
-  dob: z.string().transform((str) => {
-    // Check if the string matches dd/mm/yyyy format
-    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    const match = str.match(dateRegex);
-    
-    if (!match) {
-      throw new Error('Date must be in DD/MM/YYYY format (e.g., 01/01/1990)');
-    }
-
-    const [_, day, month, year] = match;
-    
-    // Validate day
-    const dayNum = parseInt(day);
-    if (dayNum < 1 || dayNum > 31) {
-      throw new Error('Day must be between 01 and 31');
-    }
-    
-    // Validate month
-    const monthNum = parseInt(month);
-    if (monthNum < 1 || monthNum > 12) {
-      throw new Error('Month must be between 01 and 12');
-    }
-    
-    // Validate year
-    const yearNum = parseInt(year);
-    const currentYear = new Date().getFullYear();
-    if (yearNum < 1900 || yearNum > currentYear) {
-      throw new Error(`Year must be between 1900 and ${currentYear}`);
-    }
-    
-    // Create date and validate it's a real date
-    const date = new Date(`${year}-${month}-${day}`);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date. Please provide a valid date');
-    }
-
-    return date;
-  }),
-  profileImage: z.string().optional(),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).default('bronze')
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  address: addressSchema.optional(),
+  profileImage: z.string().optional()
 });
 
 export const UpdateUserDto = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
   email: z.string().email('Invalid email format').optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
-  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
-  gender: z.enum(['M', 'F', 'O']).optional(),
-  dob: z.string().transform((str) => {
-    // Check if the string matches dd/mm/yyyy format
-    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    const match = str.match(dateRegex);
-    
-    if (!match) {
-      throw new Error('Date must be in DD/MM/YYYY format (e.g., 01/01/1990)');
-    }
-
-    const [_, day, month, year] = match;
-    
-    // Validate day
-    const dayNum = parseInt(day);
-    if (dayNum < 1 || dayNum > 31) {
-      throw new Error('Day must be between 01 and 31');
-    }
-    
-    // Validate month
-    const monthNum = parseInt(month);
-    if (monthNum < 1 || monthNum > 12) {
-      throw new Error('Month must be between 01 and 12');
-    }
-    
-    // Validate year
-    const yearNum = parseInt(year);
-    const currentYear = new Date().getFullYear();
-    if (yearNum < 1900 || yearNum > currentYear) {
-      throw new Error(`Year must be between 1900 and ${currentYear}`);
-    }
-    
-    // Create date and validate it's a real date
-    const date = new Date(`${year}-${month}-${day}`);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date. Please provide a valid date');
-    }
-
-    return date;
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  address: z.object({
+    street: z.string().min(5, 'Street address must be at least 5 characters'),
+    city: z.string().min(2, 'City must be at least 2 characters'),
+    pinCode: z.string().regex(/^\d{6}$/, 'PIN code must be 6 digits')
   }).optional(),
-  profileImage: z.string().optional(),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']).optional()
+  profileImage: z.string().optional()
 });
 
 export const LoginUserDto = z.object({
@@ -131,13 +60,19 @@ export const ChangePasswordDto = z.object({
 // Response DTOs
 export const UserResponseDto = z.object({
   id: z.string(),
-  fullName: z.string(),
+  name: z.string(),
   email: z.string(),
   phone: z.string(),
-  address: z.string(),
-  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']),
-  isActive: z.boolean(),
+  walletCoins: z.number(),
   role: z.literal('user'),
+  isActive: z.boolean(),
+  isVerified: z.boolean(),
+  membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']),
+  address: z.object({
+    street: z.string(),
+    city: z.string(),
+    pinCode: z.string()
+  }),
   profileImage: z.string(),
   createdAt: z.date()
 });

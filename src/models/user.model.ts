@@ -2,41 +2,74 @@ import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { IUser } from '../interfaces/user.interface';
 
+const addressSchema = new Schema({
+  street: {
+    type: String,
+    required: [true, 'Please provide your street address'],
+    trim: true,
+    minlength: [5, 'Street address must be at least 5 characters long']
+  },
+  city: {
+    type: String,
+    required: [true, 'Please provide your city'],
+    trim: true,
+    minlength: [2, 'City name must be at least 2 characters long']
+  },
+  pinCode: {
+    type: String,
+    required: [true, 'Please provide your PIN code'],
+    trim: true,
+    validate: {
+      validator: function(v: string) {
+        return /^\d{6}$/.test(v);
+      },
+      message: 'PIN code must be exactly 6 digits'
+    }
+  }
+}, { _id: false });
+
 const userSchema = new Schema<IUser>(
   {
-    fullName: {
+    name: {
       type: String,
-      required: [true, 'Please provide your full name'],
-      trim: true
+      required: [true, 'Please provide your name'],
+      trim: true,
+      minlength: [2, 'Name must be at least 2 characters long']
     },
     email: {
       type: String,
       required: [true, 'Please provide your email'],
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email address']
     },
     phone: {
       type: String,
       required: [true, 'Please provide your phone number'],
       unique: true,
-      trim: true
+      trim: true,
+      validate: {
+        validator: function(v: string) {
+          return /^\d{10}$/.test(v);
+        },
+        message: 'Phone number must be exactly 10 digits'
+      }
+    },
+    walletCoins: {
+      type: Number,
+      default: 0
     },
     password: {
       type: String,
       required: [true, 'Please provide a password'],
-      minlength: 6,
+      minlength: [6, 'Password must be at least 6 characters long'],
       select: false
     },
     role: {
       type: String,
       enum: ['user'],
       default: 'user'
-    },
-    membershipType: {
-      type: String,
-      enum: ['basic', 'bronze', 'silver', 'gold', 'platinum'],
-      default: 'bronze'
     },
     isActive: {
       type: Boolean,
@@ -46,19 +79,14 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
+    membershipType: {
+      type: String,
+      enum: ['basic', 'bronze', 'silver', 'gold', 'platinum'],
+      default: 'basic'
+    },
     address: {
-      type: String,
-      required: [true, 'Please provide your address'],
-      trim: true
-    },
-    gender: {
-      type: String,
-      enum: ['M', 'F', 'O'],
-      required: [true, 'Please provide your gender']
-    },
-    dob: {
-      type: Date,
-      required: [true, 'Please provide your date of birth']
+      type: addressSchema,
+      required: false
     },
     profileImage: {
       type: String,

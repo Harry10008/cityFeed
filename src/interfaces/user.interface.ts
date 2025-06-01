@@ -2,17 +2,20 @@ import { Document, Types } from 'mongoose';
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
-  fullName: string;
+  name: string;
   email: string;
   phone: string;
+  walletCoins: number;
+  role: 'user';
   password: string;
-  role: 'user' | 'merchant' | 'admin' | 'super_admin';
-  membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum';
   isActive: boolean;
   isVerified: boolean;
-  address?: string;
-  gender?: 'M' | 'F' | 'O';
-  dob?: Date;
+  membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum';
+  address: {
+    street: string;
+    city: string;
+    pinCode: string;
+  };
   profileImage?: string;
   resetToken?: string;
   resetTokenExpires?: Date;
