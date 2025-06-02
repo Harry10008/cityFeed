@@ -31,6 +31,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address
           },
           token
@@ -72,6 +73,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address
           }
         }
@@ -99,6 +101,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address
           },
           token
@@ -130,6 +133,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address,
             profileImage: user.profileImage
           }
@@ -161,6 +165,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address,
             profileImage: user.profileImage
           }
@@ -198,6 +203,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address
           }
         }
@@ -279,6 +285,7 @@ export class UserController {
             isActive: user.isActive,
             isVerified: user.isVerified,
             membershipType: user.membershipType,
+            dateOfBirth: user.dateOfBirth,
             address: user.address
           }
         },

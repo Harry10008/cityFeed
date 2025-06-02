@@ -1,6 +1,5 @@
 import { User } from '../models/user.model';
 import { IUser } from '../interfaces/user.interface';
-import {  UpdateUserDtoType } from '../dto/user.dto';
 import { AppError } from '../utils/appError';
 
 export class UserRepository {
@@ -36,10 +35,22 @@ export class UserRepository {
     }
   }
 
-  async update(id: string, data: UpdateUserDtoType): Promise<IUser | null> {
+  async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     try {
+      // Convert dateOfBirth to Date if it's a string
+      if (data.dateOfBirth && typeof data.dateOfBirth === 'string') {
+        try {
+          const dateStr = data.dateOfBirth as string;
+          const [day, month, year] = dateStr.split('/');
+          data.dateOfBirth = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } catch (error) {
+          throw new AppError('Invalid date format. Expected DD/MM/YYYY', 400);
+        }
+      }
+
       return await User.findByIdAndUpdate(id, data, { new: true });
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError('Error updating user', 500);
     }
   }
@@ -72,6 +83,7 @@ export class UserRepository {
       throw new AppError('Error updating user membership type', 500);
     }
   }
+
   async verifyUser(id: string): Promise<IUser | null> {
     try {
       return await User.findByIdAndUpdate(id, { isVerified: true }, { new: true });

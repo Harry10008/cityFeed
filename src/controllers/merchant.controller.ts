@@ -15,71 +15,23 @@ export class MerchantController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log('Raw request body:', req.body);
+      const merchantData = {
+        ...req.body,
+        businessAddress: req.body.businessAddress,
+        offers: req.body.offers || [],
+        businessImages: req.files ? (req.files as Express.Multer.File[]).map(file => file.path) : []
+      };
 
-      // Parse nested objects and arrays from form data
-      const parsedData = { ...req.body };
-
-      // Handle businessAddress - always parse if it's a string
-      if (typeof req.body.businessAddress === 'string') {
-        try {
-          const parsedAddress = JSON.parse(req.body.businessAddress);
-          parsedData.businessAddress = parsedAddress;
-        } catch (error) {
-          console.error('Business address parsing error:', error);
-          throw new AppError('Invalid business address format. Please provide a valid JSON object with street, line1, and pincode', 400);
-        }
-      }
-
-      // Handle offers - always parse if it's a string
-      if (typeof req.body.offers === 'string') {
-        try {
-          if (req.body.offers === '') {
-            parsedData.offers = [];
-          } else {
-            const parsedOffers = JSON.parse(req.body.offers);
-            parsedData.offers = parsedOffers;
-          }
-        } catch (error) {
-          console.error('Offers parsing error:', error);
-          throw new AppError('Invalid offers format. Please provide a valid JSON array of offer IDs', 400);
-        }
-      }
-
-      // Handle businessImages from files
-      if (req.files && Array.isArray(req.files)) {
-        parsedData.businessImages = req.files.map((file: any) => file.path);
-      }
-
-      console.log('Parsed data before validation:', parsedData);
-
-      // Validate the parsed data
-      const validatedData = CreateMerchantDto.parse(parsedData);
-      console.log('Validated data:', validatedData);
-
-      const { merchant, token } = await this.merchantService.register(validatedData);
+      // Validate the merchant data
+      const validatedData = CreateMerchantDto.parse(merchantData);
+      const result = await this.merchantService.register(validatedData);
       
       res.status(201).json({
         status: 'success',
-        data: {
-          merchant: {
-            id: merchant._id,
-            businessName: merchant.businessName,
-            businessAddress: merchant.businessAddress,
-            email: merchant.email,
-            phone: merchant.phone,
-            businessType: merchant.businessType,
-            businessDescription: merchant.businessDescription,
-            businessImages: merchant.businessImages,
-            isActive: merchant.isActive,
-            isVerified: merchant.isVerified
-          },
-          token
-        },
+        data: result,
         message: 'Registration successful. Please check your email to verify your account.'
       });
     } catch (error) {
-      console.error('Registration error:', error);
       if (error instanceof z.ZodError) {
         // Format Zod validation errors
         const formattedErrors = error.errors.map(err => ({
@@ -147,12 +99,20 @@ export class MerchantController {
             businessDescription: merchant.businessDescription,
             businessImages: merchant.businessImages,
             isActive: merchant.isActive,
-            isVerified: merchant.isVerified
+            isVerified: merchant.isVerified,
+            role: merchant.role
           },
           token
         }
       });
     } catch (error) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          status: 'fail',
+          message: error.message
+        });
+        return;
+      }
       next(error);
     }
   };

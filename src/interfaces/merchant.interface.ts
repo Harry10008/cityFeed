@@ -1,28 +1,23 @@
 import { Document, Types } from 'mongoose';
-
-interface IAddress {
-  street: string;
-  line1: string;
-  line2?: string;
-  pincode: string;
-}
+import { IAddress } from './address.interface';
 
 export interface IMerchant extends Document {
   _id: Types.ObjectId;
   businessName: string;
-  businessAddress: IAddress;
-  offers?: Types.ObjectId[];
-  phone: string;
   email: string;
   password: string;
-  businessImages: string[];
+  phone: string;
+  businessAddress: IAddress;
   businessType: string;
   businessDescription: string;
+  businessImages: string[];
+  offers: Types.ObjectId[];
   isActive: boolean;
   isVerified: boolean;
-  role: 'merchant';
+  role: string;
+  resetToken?: string;
+  resetTokenExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
   toObject(): any;
 } 

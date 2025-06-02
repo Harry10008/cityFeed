@@ -57,6 +57,11 @@ const upload = multer({ dest: 'uploads/' });
  *         phone:
  *           type: string
  *           description: The user's phone number
+ *         dateOfBirth:
+ *           type: string
+ *           format: date
+ *           description: The user's date of birth in DD/MM/YYYY format
+ *           example: "01/01/1990"
  *         walletCoins:
  *           type: number
  *           description: The user's wallet coins
@@ -122,6 +127,7 @@ const upload = multer({ dest: 'uploads/' });
  *               - email
  *               - password
  *               - phone
+ *               - dateOfBirth
  *             properties:
  *               name:
  *                 type: string
@@ -141,6 +147,10 @@ const upload = multer({ dest: 'uploads/' });
  *                 type: string
  *                 description: Phone number (must be exactly 10 digits)
  *                 example: "9090908871"
+ *               dateOfBirth:
+ *                 type: string
+ *                 description: Date of birth in DD/MM/YYYY format
+ *                 example: "01/01/1990"
  *               address:
  *                 type: object
  *                 description: Optional address object
@@ -193,6 +203,13 @@ const upload = multer({ dest: 'uploads/' });
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *             examples:
+ *               invalidDate:
+ *                 value:
+ *                   status: error
+ *                   message: Invalid date format
+ *                   errors:
+ *                     - field: dateOfBirth
+ *                       message: Date of birth must be in DD/MM/YYYY format
  *               invalidAddress:
  *                 value:
  *                   status: error
@@ -449,6 +466,10 @@ router.get('/profile', userController.getProfile);
  *                 format: email
  *               phone:
  *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 description: Date of birth in DD/MM/YYYY format
+ *                 example: "01/01/1990"
  *               address:
  *                 type: string
  *                 description: |
@@ -483,6 +504,20 @@ router.get('/profile', userController.getProfile);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             examples:
+ *               invalidDate:
+ *                 value:
+ *                   status: error
+ *                   message: Invalid date format
+ *                   errors:
+ *                     - field: dateOfBirth
+ *                       message: Date of birth must be in DD/MM/YYYY format
  */
 router.patch('/profile', validate(UpdateUserDto), userController.updateProfile);
 router.patch('/profile/image', uploadProfileImage, userController.updateProfile);

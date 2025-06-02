@@ -43,10 +43,10 @@ export class AdminController {
       if (!token) {
         throw new AppError('Verification token is required', 400);
       }
-
+  
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { id: string };
       const admin = await this.adminService.verifyAdmin(decoded.id);
-
+      
       res.status(200).json({
         status: 'success',
         message: 'Email verified successfully',
@@ -56,7 +56,7 @@ export class AdminController {
       if (error instanceof jwt.JsonWebTokenError) {
         next(new AppError('Invalid or expired token', 400));
       } else {
-        next(error);
+      next(error);
       }
     }
   };

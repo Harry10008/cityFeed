@@ -56,6 +56,16 @@ const userSchema = new Schema<IUser>(
         message: 'Phone number must be exactly 10 digits'
       }
     },
+    dateOfBirth: {
+      type: Date,
+      required: [true, 'Please provide your date of birth'],
+      validate: {
+        validator: function(v: Date) {
+          return v instanceof Date && !isNaN(v.getTime());
+        },
+        message: 'Please provide a valid date of birth'
+      }
+    },
     walletCoins: {
       type: Number,
       default: 0

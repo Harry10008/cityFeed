@@ -66,30 +66,48 @@ export class MerchantService {
   }
 
   async login(data: LoginMerchantDtoType): Promise<{ merchant: IMerchant; token: string }> {
-    const merchant = await Merchant.findOne({ email: data.email }).select('+password');
-    if (!merchant) {
-      throw new AppError('Invalid credentials', 401);
-    }
-
-    if (!merchant.isVerified) {
-      const verificationToken = generateVerificationToken(merchant._id.toString(), merchant.email, merchant.role);
-      try {
-        await sendVerificationEmail(merchant.email, verificationToken);
-      } catch (emailError) {
-        console.error('Error sending verification email:', emailError);
-      }
+    try {
+      // Find merchant by email
+      const merchant = await this.findByEmail(data.email);
       
-      throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
-    }
+      if (!merchant) {
+        throw new AppError('Invalid credentials', 401);
+      }
 
-    const isPasswordValid = await merchant.comparePassword(data.password);
-    if (!isPasswordValid) {
-      throw new AppError('Invalid credentials', 401);
-    }
+      // Check password
+      const isPasswordValid = await this.verifyPassword(data.password, merchant.password);
+      
+      if (!isPasswordValid) {
+        throw new AppError('Invalid credentials', 401);
+      }
 
-    const merchantObj = merchant.toObject();
-    const token = this.generateToken(merchantObj);
-    return { merchant: merchantObj, token };
+      // Check if merchant is verified
+      if (!merchant.isVerified) {
+        // Generate new verification token
+        const verificationToken = jwt.sign(
+          { id: merchant._id, email: merchant.email, role: merchant.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '24h' }
+        );
+        
+        // Send verification email
+        try {
+          await sendVerificationEmail(merchant.email, verificationToken);
+        } catch (emailError) {
+          console.error('Error sending verification email:', emailError);
+        }
+        
+        throw new AppError('Please verify your email to login. A new verification email has been sent.', 401);
+      }
+
+      // Generate JWT token
+      const token = this.generateToken(merchant);
+
+      return { merchant, token };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Error during login', 500);
+    }
   }
 
   async getProfile(merchantId: string): Promise<IMerchant> {
@@ -120,7 +138,8 @@ export class MerchantService {
 
   private generateToken(merchant: IMerchant): string {
     const payload = { 
-      id: merchant._id.toString(), 
+      userId: merchant._id.toString(), 
+      email: merchant.email,
       role: merchant.role,
       isVerified: merchant.isVerified 
     };
@@ -177,13 +196,29 @@ export class MerchantService {
   }
 
   async findByEmail(email: string): Promise<IMerchant | null> {
-    const merchant = await Merchant.findOne({ email }).select('+password');
-    return merchant ? merchant.toObject() : null;
+    try {
+      const merchant = await this.merchantRepository.findByEmail(email);
+      if (!merchant) return null;
+      
+      // If merchant is a Mongoose document, convert to plain object
+      const merchantObj = merchant.toObject ? merchant.toObject() : merchant;
+      
+      // Ensure all required fields are present
+      return {
+        ...merchantObj,
+        isVerified: merchantObj.isVerified ?? false,
+        role: merchantObj.role || 'merchant'
+      } as IMerchant;
+    } catch (error) {
+      console.error('Error finding merchant by email:', error);
+      return null;
+    }
   }
 
   async findById(id: string): Promise<IMerchant | null> {
     const merchant = await Merchant.findById(id).select('+password');
-    return merchant ? merchant.toObject() : null;
+    if (!merchant) return null;
+    return merchant as unknown as IMerchant;
   }
 
   async findByResetToken(token: string): Promise<IMerchant | null> {
@@ -191,7 +226,8 @@ export class MerchantService {
       resetToken: token,
       resetTokenExpires: { $gt: Date.now() }
     });
-    return merchant ? merchant.toObject() : null;
+    if (!merchant) return null;
+    return merchant as unknown as IMerchant;
   }
 
   async update(id: string, data: Partial<IMerchant>): Promise<IMerchant | null> {
@@ -204,7 +240,7 @@ export class MerchantService {
     Object.assign(merchant, data);
     await merchant.save();
 
-    return merchant.toObject();
+    return merchant as unknown as IMerchant;
   }
 
   async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
@@ -212,24 +248,24 @@ export class MerchantService {
   }
 
   async getAllMerchants(): Promise<IMerchant[]> {
-    const merchants = await Merchant.find({ isActive: true }).lean();
-    return merchants as IMerchant[];
+    const merchants = await Merchant.find({ isActive: true });
+    return merchants as unknown as IMerchant[];
   }
 
   async getMerchantsByCategory(category: string): Promise<IMerchant[]> {
     const merchants = await Merchant.find({
       businessType: category,
       isActive: true
-    }).lean();
-    return merchants as IMerchant[];
+    });
+    return merchants as unknown as IMerchant[];
   }
 
   async getMerchantsByFoodPreference(preference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
     const merchants = await Merchant.find({
       foodPreference: preference,
       isActive: true
-    }).lean();
-    return merchants as IMerchant[];
+    });
+    return merchants as unknown as IMerchant[];
   }
 
   async getMerchantsByCategoryAndFoodPreference(
@@ -240,7 +276,7 @@ export class MerchantService {
       businessType: category,
       foodPreference: preference,
       isActive: true
-    }).lean();
-    return merchants as IMerchant[];
+    });
+    return merchants as unknown as IMerchant[];
   }
 } 

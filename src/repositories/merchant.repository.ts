@@ -1,128 +1,132 @@
 import { IMerchant } from '../interfaces/merchant.interface';
 import { Merchant } from '../models/merchant.model';
-import { CreateMerchantDtoType } from '../dto/merchant.dto';
-import { AppError } from '../utils/appError';
+import { CreateMerchantDtoType, UpdateMerchantDtoType } from '../dto/merchant.dto';
 import { Types } from 'mongoose';
 
 export class MerchantRepository {
   async create(data: CreateMerchantDtoType): Promise<IMerchant> {
-    try {
-      const merchant = new Merchant({
-        ...data,
-        businessType: data.businessType || 'restaurant',
-        role: 'merchant' as const,
-        isActive: true,
-        isVerified: false,
-        businessImages: data.businessImages || [],
-        offers: Array.isArray(data.offers) ? data.offers.map((id: string) => new Types.ObjectId(id)) : []
-      });
-
-      return await merchant.save();
-    } catch (error) {
-      console.error('Error creating merchant:', error);
-      if (error.code === 11000) {
-        throw new AppError('Email already registered', 400);
-      }
-      throw new AppError('Error creating merchant', 500);
-    }
+    const merchant = new Merchant(data);
+    const savedMerchant = await merchant.save();
+    return savedMerchant as unknown as IMerchant;
   }
 
   async findById(id: string): Promise<IMerchant | null> {
-    try {
-      return await Merchant.findById(id);
-    } catch (error) {
-      throw new AppError('Error finding merchant', 500);
-    }
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
+    return merchant as unknown as IMerchant;
   }
 
   async findByEmail(email: string): Promise<IMerchant | null> {
-    try {
-      return await Merchant.findOne({ email }).select('+password');
-    } catch (error) {
-      throw new AppError('Error finding merchant by email', 500);
-    }
+    const merchant = await Merchant.findOne({ email }).select('+password +isVerified +role');
+    if (!merchant) return null;
+    return merchant as unknown as IMerchant;
   }
 
-  async update(id: string, data: Partial<IMerchant>): Promise<IMerchant | null> {
-    try {
-      const merchant = await Merchant.findById(id);
-      if (!merchant) {
-        return null;
-      }
+  async update(id: string, data: UpdateMerchantDtoType): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
 
-      // Update fields
-      Object.assign(merchant, data);
-      return await merchant.save();
-    } catch (error) {
-      throw new AppError('Error updating merchant', 500);
-    }
+    // Update fields
+    Object.assign(merchant, data);
+    const updatedMerchant = await merchant.save();
+    return updatedMerchant as unknown as IMerchant;
   }
 
   async delete(id: string): Promise<boolean> {
-    try {
-      const result = await Merchant.findByIdAndDelete(id);
-      return !!result;
-    } catch (error) {
-      throw new AppError('Error deleting merchant', 500);
-    }
+    const result = await Merchant.findByIdAndDelete(id);
+    return !!result;
   }
 
   async findAll(): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ isVerified: true });
-    } catch (error) {
-      throw new AppError('Error finding merchants', 500);
-    }
+    const merchants = await Merchant.find();
+    return merchants as unknown as IMerchant[];
   }
 
-  async findByCategory(category: string): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ 
-        businessType: category,
-        isVerified: true 
-      });
-    } catch (error) {
-      throw new AppError('Error finding merchants by category', 500);
-    }
+  async findByBusinessType(businessType: string): Promise<IMerchant[]> {
+    const merchants = await Merchant.find({ businessType });
+    return merchants as unknown as IMerchant[];
   }
-  
+
+  async findByFoodPreference(preference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
+    const merchants = await Merchant.find({ foodPreference: preference });
+    return merchants as unknown as IMerchant[];
+  }
+
   async findByCategoryAndFoodPreference(
-    category: string, 
-    foodPreference: 'veg' | 'nonveg' | 'both'
+    category: string,
+    preference: 'veg' | 'nonveg' | 'both'
   ): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ 
-        businessType: category,
-        foodPreference,
-        isVerified: true
-      });
-    } catch (error) {
-      throw new AppError('Error finding merchants by category and food preference', 500);
-    }
-  }
-  
-  async findByFoodPreference(foodPreference: 'veg' | 'nonveg' | 'both'): Promise<IMerchant[]> {
-    try {
-      return await Merchant.find({ 
-        foodPreference,
-        isVerified: true
-      });
-    } catch (error) {
-      throw new AppError('Error finding merchants by food preference', 500);
-    }
+    const merchants = await Merchant.find({
+      businessType: category,
+      foodPreference: preference
+    });
+    return merchants as unknown as IMerchant[];
   }
 
   async updateVerificationStatus(id: string, isVerified: boolean): Promise<IMerchant | null> {
-    try {
-      const merchant = await Merchant.findById(id);
-      if (!merchant) {
-        return null;
-      }
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
 
-      merchant.isVerified = isVerified;
-      return await merchant.save();
-    } catch (error) {
-      throw new AppError('Error updating merchant verification status', 500);
+    merchant.isVerified = isVerified;
+    const updatedMerchant = await merchant.save();
+    return updatedMerchant as unknown as IMerchant;
+  }
+
+  async updateResetToken(
+    id: string,
+    resetToken: string,
+    resetTokenExpires: Date
+  ): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
+
+    const merchantDoc = merchant as unknown as IMerchant;
+    merchantDoc.resetToken = resetToken;
+    merchantDoc.resetTokenExpires = resetTokenExpires;
+    const updatedMerchant = await merchantDoc.save();
+    return updatedMerchant as unknown as IMerchant;
+  }
+
+  async clearResetToken(id: string): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
+
+    const merchantDoc = merchant as unknown as IMerchant;
+    merchantDoc.resetToken = undefined;
+    merchantDoc.resetTokenExpires = undefined;
+    const updatedMerchant = await merchantDoc.save();
+    return updatedMerchant as unknown as IMerchant;
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(id);
+    if (!merchant) return null;
+
+    merchant.password = hashedPassword;
+    const updatedMerchant = await merchant.save();
+    return updatedMerchant as unknown as IMerchant;
+  }
+
+  async addOffer(merchantId: string, offerId: Types.ObjectId): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) return null;
+
+    if (!merchant.offers) {
+      merchant.offers = [];
     }
+    merchant.offers.push(offerId);
+    const updatedMerchant = await merchant.save();
+    return updatedMerchant as unknown as IMerchant;
+  }
+
+  async removeOffer(merchantId: string, offerId: Types.ObjectId): Promise<IMerchant | null> {
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) return null;
+
+    if (merchant.offers) {
+      merchant.offers = merchant.offers.filter(id => !id.equals(offerId));
+    }
+    const updatedMerchant = await merchant.save();
+    return updatedMerchant as unknown as IMerchant;
   }
 } 

@@ -42,7 +42,7 @@ export const validate = (schema: AnyZodObject) => {
         });
         return;
       }
-      next(error);
+        next(error);
     }
   };
 };

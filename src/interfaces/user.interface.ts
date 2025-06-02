@@ -11,6 +11,7 @@ export interface IUser extends Document {
   isActive: boolean;
   isVerified: boolean;
   membershipType: 'basic' | 'bronze' | 'silver' | 'gold' | 'platinum';
+  dateOfBirth: Date;
   address: {
     street: string;
     city: string;

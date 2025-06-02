@@ -17,6 +17,7 @@ export const CreateUserDto = z.object({
   email: z.string().email('Invalid email format'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  dateOfBirth: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date of birth must be in DD/MM/YYYY format'),
   address: addressSchema.optional(),
   profileImage: z.string().optional()
 });
@@ -26,6 +27,7 @@ export const UpdateUserDto = z.object({
   email: z.string().email('Invalid email format').optional(),
   phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  dateOfBirth: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date of birth must be in DD/MM/YYYY format').optional(),
   address: z.object({
     street: z.string().min(5, 'Street address must be at least 5 characters'),
     city: z.string().min(2, 'City must be at least 2 characters'),
@@ -68,6 +70,7 @@ export const UserResponseDto = z.object({
   isActive: z.boolean(),
   isVerified: z.boolean(),
   membershipType: z.enum(['basic', 'bronze', 'silver', 'gold', 'platinum']),
+  dateOfBirth: z.date(),
   address: z.object({
     street: z.string(),
     city: z.string(),

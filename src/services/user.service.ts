@@ -22,8 +22,15 @@ export class UserService {
         throw new AppError('Email already registered', 400);
       }
 
+      // Convert DOB string to Date object
+      const [day, month, year] = data.dateOfBirth.split('/');
+      const dateOfBirth = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+
       // Create user with gender as is (already in correct format from DTO)
-      const user = await this.userRepository.create(data);
+      const user = await this.userRepository.create({
+        ...data,
+        dateOfBirth
+      });
     
       // Generate verification token
       const verificationToken = jwt.sign(
@@ -97,8 +104,17 @@ export class UserService {
       if (data.password) {
         data.password = await bcrypt.hash(data.password, 10);
       }
+
+      // Convert dateOfBirth string to Date if present
+      const updateData: Partial<IUser> = {
+        ...data,
+        dateOfBirth: data.dateOfBirth ? (() => {
+          const [day, month, year] = data.dateOfBirth!.split('/');
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        })() : undefined
+      };
       
-      const user = await this.update(userId, data);
+      const user = await this.update(userId, updateData);
       if (!user) {
         throw new AppError('User not found', 404);
       }
@@ -185,7 +201,7 @@ export class UserService {
     return await this.userRepository.findById(id);
   }
 
-  async update(id: string, data: Partial<UpdateUserDtoType>): Promise<IUser | null> {
+  async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     return await this.userRepository.update(id, data);
   }
 

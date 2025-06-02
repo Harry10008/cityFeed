@@ -38,14 +38,15 @@ export const authenticateUser = async (req: AuthRequest, _res: Response, next: N
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as {
-      id: string;
+      userId: string;
+      email: string;
       role: string;
       isVerified: boolean;
     };
 
     // Check if user exists
     const userService = new UserService();
-    const user = await userService.findById(decoded.id);
+    const user = await userService.findById(decoded.userId);
     if (!user) {
       throw new AppError('User not found', 404);
     }
@@ -57,7 +58,7 @@ export const authenticateUser = async (req: AuthRequest, _res: Response, next: N
 
     // Attach user to request
     req.user = {
-      id: decoded.id,
+      id: decoded.userId,
       role: decoded.role,
       isVerified: decoded.isVerified
     };
