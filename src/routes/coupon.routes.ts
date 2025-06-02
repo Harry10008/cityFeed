@@ -34,31 +34,26 @@ const couponController = new CouponController();
  *                     type: string
  *                   code:
  *                     type: string
- *                   discount:
+ *                   title:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   discountPercentage:
  *                     type: number
- *                   expiryDate:
+ *                   maxDiscountAmount:
+ *                     type: number
+ *                   minPurchaseAmount:
+ *                     type: number
+ *                   maxPurchaseAmount:
+ *                     type: number
+ *                   startDate:
+ *                     type: string
+ *                     format: date-time
+ *                   endDate:
  *                     type: string
  *                     format: date-time
  */
 router.get('/active', couponController.getActiveCoupons);
-
-/**
- * @swagger
- * /api/coupons/category/{category}:
- *   get:
- *     summary: Get coupons by category
- *     tags: [Coupons]
- *     parameters:
- *       - in: path
- *         name: category
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of coupons in the category
- */
-router.get('/category/:category', couponController.getCouponsByCategory);
 
 /**
  * @swagger
@@ -119,14 +114,36 @@ router.use(protect);
  *             type: object
  *             required:
  *               - code
- *               - discount
- *               - expiryDate
+ *               - title
+ *               - description
+ *               - discountPercentage
+ *               - maxDiscountAmount
+ *               - startDate
+ *               - endDate
  *             properties:
  *               code:
  *                 type: string
- *               discount:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               discountPercentage:
  *                 type: number
- *               expiryDate:
+ *                 minimum: 0
+ *                 maximum: 100
+ *               maxDiscountAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               minPurchaseAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               maxPurchaseAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *               endDate:
  *                 type: string
  *                 format: date-time
  *     responses:
@@ -160,11 +177,31 @@ router.post('/', validate(CreateCouponDto), couponController.createCoupon);
  *             properties:
  *               code:
  *                 type: string
- *               discount:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               discountPercentage:
  *                 type: number
- *               expiryDate:
+ *                 minimum: 0
+ *                 maximum: 100
+ *               maxDiscountAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               minPurchaseAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               maxPurchaseAmount:
+ *                 type: number
+ *                 minimum: 0
+ *               startDate:
  *                 type: string
  *                 format: date-time
+ *               endDate:
+ *                 type: string
+ *                 format: date-time
+ *               isActive:
+ *                 type: boolean
  *     responses:
  *       200:
  *         description: Coupon updated successfully
@@ -262,10 +299,11 @@ router.patch('/redemption/:id/status', couponController.updateRedemptionStatus);
  *           schema:
  *             type: object
  *             required:
- *               - quantity
+ *               - amount
  *             properties:
- *               quantity:
+ *               amount:
  *                 type: number
+ *                 minimum: 0
  *     responses:
  *       200:
  *         description: Coupon redeemed successfully

@@ -5,15 +5,12 @@ export const CreateCouponDto = z.object({
   code: z.string().min(3),
   title: z.string().min(3),
   description: z.string().min(10),
-  discountType: z.enum(['percentage', 'fixed']),
-  discountValue: z.number().positive(),
+  discountPercentage: z.number().min(0).max(100),
+  maxDiscountAmount: z.number().positive(),
   minPurchaseAmount: z.number().positive().optional(),
-  maxDiscountAmount: z.number().positive().optional(),
+  maxPurchaseAmount: z.number().positive().optional(),
   startDate: z.date(),
-  endDate: z.date(),
-  category: z.string().min(2),
-  termsAndConditions: z.array(z.string()),
-  maxRedemptions: z.number().positive().optional()
+  endDate: z.date()
 });
 
 export const UpdateCouponDto = CreateCouponDto.partial();
@@ -28,18 +25,14 @@ export const CouponResponseDto = z.object({
   code: z.string(),
   title: z.string(),
   description: z.string(),
-  discountType: z.enum(['percentage', 'fixed']),
-  discountValue: z.number(),
+  discountPercentage: z.number(),
+  maxDiscountAmount: z.number(),
   minPurchaseAmount: z.number().optional(),
-  maxDiscountAmount: z.number().optional(),
+  maxPurchaseAmount: z.number().optional(),
   startDate: z.date(),
   endDate: z.date(),
   merchant: z.string(),
-  category: z.string(),
-  termsAndConditions: z.array(z.string()),
   isActive: z.boolean(),
-  maxRedemptions: z.number().optional(),
-  currentRedemptions: z.number(),
   createdAt: z.date()
 });
 

@@ -16,7 +16,6 @@ export class CouponService {
     const coupon = await this.couponRepository.create({
       ...data,
       merchant: new Types.ObjectId(merchantId),
-      currentRedemptions: 0,
       isActive: true
     });
     return coupon;
@@ -67,25 +66,20 @@ export class CouponService {
       throw new AppError('Coupon is not valid at this time', 400);
     }
 
-    // Check if coupon has reached max redemptions
-    if (coupon.maxRedemptions && coupon.currentRedemptions >= coupon.maxRedemptions) {
-      throw new AppError('Coupon has reached maximum redemptions', 400);
-    }
-
     // Check minimum purchase amount
     if (coupon.minPurchaseAmount && data.amount < coupon.minPurchaseAmount) {
       throw new AppError(`Minimum purchase amount is ${coupon.minPurchaseAmount}`, 400);
     }
 
+    // Check maximum purchase amount
+    if (coupon.maxPurchaseAmount && data.amount > coupon.maxPurchaseAmount) {
+      throw new AppError(`Maximum purchase amount is ${coupon.maxPurchaseAmount}`, 400);
+    }
+
     // Calculate discount amount
-    let discountAmount: number;
-    if (coupon.discountType === 'percentage') {
-      discountAmount = (data.amount * coupon.discountValue) / 100;
-      if (coupon.maxDiscountAmount) {
-        discountAmount = Math.min(discountAmount, coupon.maxDiscountAmount);
-      }
-    } else {
-      discountAmount = coupon.discountValue;
+    let discountAmount = (data.amount * coupon.discountPercentage) / 100;
+    if (discountAmount > coupon.maxDiscountAmount) {
+      discountAmount = coupon.maxDiscountAmount;
     }
 
     // Create redemption record
@@ -97,9 +91,6 @@ export class CouponService {
       status: 'pending',
       redeemedAt: now
     });
-
-    // Increment current redemptions
-    await this.couponRepository.incrementRedemptions(couponId);
 
     return redemption;
   }

@@ -112,7 +112,42 @@ process.on('unhandledRejection', (error) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const startServer = async (port: number): Promise<void> => {
+  try {
+    const server = app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+
+    // Handle server shutdown gracefully
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received. Shutting down gracefully...');
+      server.close(() => {
+        console.log('Process terminated');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', () => {
+      console.log('SIGINT received. Shutting down gracefully...');
+      server.close(() => {
+        console.log('Process terminated');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+      console.log(`Port ${port} is in use, trying ${port + 1}...`);
+      await startServer(port + 1);
+    } else {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+};
+
+// Start with initial port
+const initialPort = parseInt(process.env.PORT || '3000', 10);
+startServer(initialPort).catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 }); 
