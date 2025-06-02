@@ -1,16 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
-import { IMerchant } from '../interfaces/merchant.interface';
-import { UserService } from '../services/user.service';
+import { Document, Types } from 'mongoose';
 import { AppError } from '../utils/appError';
+import { User } from '../models/user.model';
+import { Merchant } from '../models/merchant.model';
+
+export interface IUser extends Document {
+  _id: Types.ObjectId;
+  email: string;
+  role: string;
+  isVerified: boolean;
+}
+
+export interface IMerchant extends Document {
+  _id: Types.ObjectId;
+  email: string;
+  role: string;
+  isVerified: boolean;
+}
 
 export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    role: string;
-    isVerified: boolean;
-  };
+  user?: IUser;
   merchant?: IMerchant;
   admin?: {
     id: string;
@@ -37,31 +48,21 @@ export const authenticateUser = async (req: AuthRequest, _res: Response, next: N
     const token = authHeader.split(' ')[1];
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as {
-      userId: string;
-      email: string;
-      role: string;
-      isVerified: boolean;
-    };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as JwtPayload;
 
     // Check if user exists
-    const userService = new UserService();
-    const user = await userService.findById(decoded.userId);
+    const user = await User.findById(decoded.userId);
     if (!user) {
       throw new AppError('User not found', 404);
     }
 
     // Check if user is verified
-    if (!decoded.isVerified) {
+    if (!user.isVerified) {
       throw new AppError('Please verify your email before accessing this resource', 403);
     }
 
     // Attach user to request
-    req.user = {
-      id: decoded.userId,
-      role: decoded.role,
-      isVerified: decoded.isVerified
-    };
+    req.user = user as IUser;
 
     next();
   } catch (error) {
@@ -73,16 +74,45 @@ export const authenticateUser = async (req: AuthRequest, _res: Response, next: N
   }
 };
 
-export const authenticateMerchant = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticateMerchant = async (req: AuthRequest, _res: Response, next: NextFunction) => {
   try {
-    await authenticateUser(req, res, () => {
-      if (req.user?.role !== 'merchant') {
-        throw new AppError('Access denied. Merchant role required.', 403);
-      }
-      next();
-    });
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new AppError('No token provided', 401);
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as JwtPayload;
+
+    // Check if merchant exists
+    const merchant = await Merchant.findById(decoded.userId).select('+isVerified');
+    if (!merchant) {
+      throw new AppError('Merchant not found', 404);
+    }
+
+    // Check if merchant is verified
+    if (!merchant.isVerified) {
+      throw new AppError('Please verify your email before accessing this resource', 403);
+    }
+
+    // Check if merchant role
+    if (decoded.role !== 'merchant') {
+      throw new AppError('Access denied. Merchant role required.', 403);
+    }
+
+    // Attach merchant to request
+    req.merchant = merchant as IMerchant;
+
+    next();
   } catch (error) {
-    next(error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      next(new AppError('Invalid token', 401));
+    } else {
+      next(error);
+    }
   }
 };
 

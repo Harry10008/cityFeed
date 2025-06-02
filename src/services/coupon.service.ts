@@ -16,18 +16,27 @@ export class CouponService {
     const coupon = await this.couponRepository.create({
       ...data,
       merchant: new Types.ObjectId(merchantId),
-      currentRedemptions: 0,
       isActive: true
     });
     return coupon;
   }
 
-  async updateCoupon(id: string, data: UpdateCouponDtoType): Promise<ICoupon> {
-    const coupon = await this.couponRepository.update(id, data);
+  async updateCoupon(id: string, data: UpdateCouponDtoType, merchantId: string): Promise<ICoupon> {
+    const coupon = await this.couponRepository.findById(id);
     if (!coupon) {
       throw new AppError('Coupon not found', 404);
     }
-    return coupon;
+
+    // Verify that the merchant owns this coupon
+    if (coupon.merchant.toString() !== merchantId) {
+      throw new AppError('Not authorized to update this coupon', 403);
+    }
+
+    const updatedCoupon = await this.couponRepository.update(id, data);
+    if (!updatedCoupon) {
+      throw new AppError('Error updating coupon', 500);
+    }
+    return updatedCoupon;
   }
 
   async getCoupon(id: string): Promise<ICoupon> {
@@ -67,25 +76,20 @@ export class CouponService {
       throw new AppError('Coupon is not valid at this time', 400);
     }
 
-    // Check if coupon has reached max redemptions
-    if (coupon.maxRedemptions && coupon.currentRedemptions >= coupon.maxRedemptions) {
-      throw new AppError('Coupon has reached maximum redemptions', 400);
-    }
-
     // Check minimum purchase amount
     if (coupon.minPurchaseAmount && data.amount < coupon.minPurchaseAmount) {
       throw new AppError(`Minimum purchase amount is ${coupon.minPurchaseAmount}`, 400);
     }
 
+    // Check maximum purchase amount
+    if (coupon.maxPurchaseAmount && data.amount > coupon.maxPurchaseAmount) {
+      throw new AppError(`Maximum purchase amount is ${coupon.maxPurchaseAmount}`, 400);
+    }
+
     // Calculate discount amount
-    let discountAmount: number;
-    if (coupon.discountType === 'percentage') {
-      discountAmount = (data.amount * coupon.discountValue) / 100;
-      if (coupon.maxDiscountAmount) {
-        discountAmount = Math.min(discountAmount, coupon.maxDiscountAmount);
-      }
-    } else {
-      discountAmount = coupon.discountValue;
+    let discountAmount = (data.amount * coupon.discountPercentage) / 100;
+    if (discountAmount > coupon.maxDiscountAmount) {
+      discountAmount = coupon.maxDiscountAmount;
     }
 
     // Create redemption record
@@ -98,18 +102,26 @@ export class CouponService {
       redeemedAt: now
     });
 
-    // Increment current redemptions
-    await this.couponRepository.incrementRedemptions(couponId);
-
     return redemption;
   }
 
-  async updateRedemptionStatus(id: string, status: 'completed' | 'cancelled'): Promise<ICouponRedemption> {
-    const redemption = await this.couponRepository.updateRedemptionStatus(id, status);
+  async updateRedemptionStatus(id: string, status: 'completed' | 'cancelled', merchantId: string): Promise<ICouponRedemption> {
+    const redemption = await this.couponRepository.findRedemptionById(id);
     if (!redemption) {
       throw new AppError('Redemption not found', 404);
     }
-    return redemption;
+
+    // Get the coupon to verify merchant ownership
+    const coupon = await this.getCoupon(redemption.coupon.toString());
+    if (coupon.merchant.toString() !== merchantId) {
+      throw new AppError('Not authorized to update this redemption status', 403);
+    }
+
+    const updatedRedemption = await this.couponRepository.updateRedemptionStatus(id, status);
+    if (!updatedRedemption) {
+      throw new AppError('Error updating redemption status', 500);
+    }
+    return updatedRedemption;
   }
 
   async getRedemptionStats(userId: string): Promise<any> {
@@ -119,4 +131,4 @@ export class CouponService {
   async getMerchantRedemptionStats(merchantId: string): Promise<any> {
     return await this.couponRepository.getMerchantRedemptionStats(merchantId);
   }
-} 
+}

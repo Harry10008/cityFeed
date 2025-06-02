@@ -9,6 +9,63 @@ const couponController = new CouponController();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Coupon:
+ *       type: object
+ *       required:
+ *         - code
+ *         - title
+ *         - description
+ *         - discountPercentage
+ *         - maxDiscountAmount
+ *         - startDate
+ *         - endDate
+ *       properties:
+ *         code:
+ *           type: string
+ *           minLength: 3
+ *           description: Unique coupon code
+ *         title:
+ *           type: string
+ *           minLength: 3
+ *           description: Coupon title
+ *         description:
+ *           type: string
+ *           minLength: 10
+ *           description: Coupon description
+ *         discountPercentage:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 100
+ *           description: Percentage discount (0-100)
+ *         maxDiscountAmount:
+ *           type: number
+ *           minimum: 0
+ *           description: Maximum discount amount
+ *         minPurchaseAmount:
+ *           type: number
+ *           minimum: 0
+ *           description: Minimum purchase amount required
+ *         maxPurchaseAmount:
+ *           type: number
+ *           minimum: 0
+ *           description: Maximum purchase amount allowed
+ *         startDate:
+ *           type: string
+ *           format: date-time
+ *           description: When the coupon becomes valid
+ *         endDate:
+ *           type: string
+ *           format: date-time
+ *           description: When the coupon expires
+ *         isActive:
+ *           type: boolean
+ *           description: Whether the coupon is currently active
+ */
+
+/**
+ * @swagger
  * tags:
  *   name: Coupons
  *   description: Coupon management endpoints
@@ -26,39 +83,20 @@ const couponController = new CouponController();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   code:
- *                     type: string
- *                   discount:
- *                     type: number
- *                   expiryDate:
- *                     type: string
- *                     format: date-time
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupons:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Coupon'
  */
 router.get('/active', couponController.getActiveCoupons);
-
-/**
- * @swagger
- * /api/coupons/category/{category}:
- *   get:
- *     summary: Get coupons by category
- *     tags: [Coupons]
- *     parameters:
- *       - in: path
- *         name: category
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of coupons in the category
- */
-router.get('/category/:category', couponController.getCouponsByCategory);
 
 /**
  * @swagger
@@ -75,6 +113,19 @@ router.get('/category/:category', couponController.getCouponsByCategory);
  *     responses:
  *       200:
  *         description: Coupon details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupon:
+ *                       $ref: '#/components/schemas/Coupon'
  *       404:
  *         description: Coupon not found
  */
@@ -95,6 +146,19 @@ router.get('/code/:code', couponController.getCouponByCode);
  *     responses:
  *       200:
  *         description: Coupon details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupon:
+ *                       $ref: '#/components/schemas/Coupon'
  *       404:
  *         description: Coupon not found
  */
@@ -116,22 +180,23 @@ router.use(protect);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - code
- *               - discount
- *               - expiryDate
- *             properties:
- *               code:
- *                 type: string
- *               discount:
- *                 type: number
- *               expiryDate:
- *                 type: string
- *                 format: date-time
+ *             $ref: '#/components/schemas/Coupon'
  *     responses:
  *       201:
  *         description: Coupon created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupon:
+ *                       $ref: '#/components/schemas/Coupon'
  *       401:
  *         description: Unauthorized
  */
@@ -156,18 +221,23 @@ router.post('/', validate(CreateCouponDto), couponController.createCoupon);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               code:
- *                 type: string
- *               discount:
- *                 type: number
- *               expiryDate:
- *                 type: string
- *                 format: date-time
+ *             $ref: '#/components/schemas/Coupon'
  *     responses:
  *       200:
  *         description: Coupon updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupon:
+ *                       $ref: '#/components/schemas/Coupon'
  *       401:
  *         description: Unauthorized
  *       404:
@@ -186,6 +256,21 @@ router.patch('/:id', validate(UpdateCouponDto), couponController.updateCoupon);
  *     responses:
  *       200:
  *         description: List of merchant's coupons
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     coupons:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Coupon'
  *       401:
  *         description: Unauthorized
  */
@@ -202,6 +287,19 @@ router.get('/merchant/coupons', couponController.getMerchantCoupons);
  *     responses:
  *       200:
  *         description: Merchant's coupon redemption statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     stats:
+ *                       type: object
  *       401:
  *         description: Unauthorized
  */
@@ -232,10 +330,23 @@ router.get('/merchant/stats', couponController.getMerchantRedemptionStats);
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [pending, approved, rejected]
+ *                 enum: [completed, cancelled]
  *     responses:
  *       200:
  *         description: Redemption status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     redemption:
+ *                       type: object
  *       401:
  *         description: Unauthorized
  */
@@ -262,13 +373,27 @@ router.patch('/redemption/:id/status', couponController.updateRedemptionStatus);
  *           schema:
  *             type: object
  *             required:
- *               - quantity
+ *               - amount
  *             properties:
- *               quantity:
+ *               amount:
  *                 type: number
+ *                 minimum: 0
  *     responses:
  *       200:
  *         description: Coupon redeemed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     redemption:
+ *                       type: object
  *       401:
  *         description: Unauthorized
  *       404:
@@ -287,9 +412,22 @@ router.post('/:id/redeem', validate(RedeemCouponDto), couponController.redeemCou
  *     responses:
  *       200:
  *         description: User's coupon redemption statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     stats:
+ *                       type: object
  *       401:
  *         description: Unauthorized
  */
 router.get('/user/stats', couponController.getRedemptionStats);
 
-export default router; 
+export default router;

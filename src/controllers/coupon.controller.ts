@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CouponService } from '../services/coupon.service';
 import { CreateCouponDto, UpdateCouponDto, RedeemCouponDto } from '../dto/coupon.dto';
 import { AppError } from '../utils/appError';
+import { AuthRequest } from '../middleware/auth';
 
 export class CouponController {
   private couponService: CouponService;
@@ -10,10 +11,14 @@ export class CouponController {
     this.couponService = new CouponService();
   }
 
-  createCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  createCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      if (!req.merchant?._id) {
+        throw new AppError('Not authorized to create coupons', 401);
+      }
+
       const couponData = CreateCouponDto.parse(req.body);
-      const coupon = await this.couponService.createCoupon(couponData, req.user._id);
+      const coupon = await this.couponService.createCoupon(couponData, req.merchant._id.toString());
       
       res.status(201).json({
         status: 'success',
@@ -26,11 +31,15 @@ export class CouponController {
     }
   };
 
-  updateCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  updateCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      if (!req.merchant?._id) {
+        throw new AppError('Not authorized to update coupons', 401);
+      }
+
       const { id } = req.params;
       const updateData = UpdateCouponDto.parse(req.body);
-      const coupon = await this.couponService.updateCoupon(id, updateData);
+      const coupon = await this.couponService.updateCoupon(id, updateData, req.merchant._id.toString());
       
       res.status(200).json({
         status: 'success',
@@ -75,9 +84,13 @@ export class CouponController {
     }
   };
 
-  getMerchantCoupons = async (req: Request, res: Response, next: NextFunction) => {
+  getMerchantCoupons = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const coupons = await this.couponService.getMerchantCoupons(req.user._id);
+      if (!req.merchant?._id) {
+        throw new AppError('Not authorized to view merchant coupons', 401);
+      }
+
+      const coupons = await this.couponService.getMerchantCoupons(req.merchant._id.toString());
       
       res.status(200).json({
         status: 'success',
@@ -121,11 +134,15 @@ export class CouponController {
     }
   };
 
-  redeemCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  redeemCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?._id) {
+        throw new AppError('Not authorized to redeem coupons', 401);
+      }
+
       const { id } = req.params;
       const redeemData = RedeemCouponDto.parse(req.body);
-      const redemption = await this.couponService.redeemCoupon(id, req.user._id, redeemData);
+      const redemption = await this.couponService.redeemCoupon(id, req.user._id.toString(), redeemData);
       
       res.status(200).json({
         status: 'success',
@@ -138,8 +155,12 @@ export class CouponController {
     }
   };
 
-  updateRedemptionStatus = async (req: Request, res: Response, next: NextFunction) => {
+  updateRedemptionStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      if (!req.merchant?._id) {
+        throw new AppError('Not authorized to update redemption status', 401);
+      }
+
       const { id } = req.params;
       const { status } = req.body;
       
@@ -147,7 +168,7 @@ export class CouponController {
         throw new AppError('Invalid status', 400);
       }
 
-      const redemption = await this.couponService.updateRedemptionStatus(id, status);
+      const redemption = await this.couponService.updateRedemptionStatus(id, status, req.merchant._id.toString());
       
       res.status(200).json({
         status: 'success',
@@ -160,9 +181,13 @@ export class CouponController {
     }
   };
 
-  getRedemptionStats = async (req: Request, res: Response, next: NextFunction) => {
+  getRedemptionStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const stats = await this.couponService.getRedemptionStats(req.user._id);
+      if (!req.user?._id) {
+        throw new AppError('Not authorized to view redemption stats', 401);
+      }
+
+      const stats = await this.couponService.getRedemptionStats(req.user._id.toString());
       
       res.status(200).json({
         status: 'success',
@@ -175,9 +200,13 @@ export class CouponController {
     }
   };
 
-  getMerchantRedemptionStats = async (req: Request, res: Response, next: NextFunction) => {
+  getMerchantRedemptionStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const stats = await this.couponService.getMerchantRedemptionStats(req.user._id);
+      if (!req.merchant?._id) {
+        throw new AppError('Not authorized to view merchant redemption stats', 401);
+      }
+
+      const stats = await this.couponService.getMerchantRedemptionStats(req.merchant._id.toString());
       
       res.status(200).json({
         status: 'success',

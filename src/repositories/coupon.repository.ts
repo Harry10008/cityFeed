@@ -7,7 +7,7 @@ import { AppError } from '../utils/appError';
 import { Types } from 'mongoose';
 
 export class CouponRepository {
-  async create(data: CreateCouponDtoType & { merchant: Types.ObjectId; currentRedemptions: number; isActive: boolean }): Promise<ICoupon> {
+  async create(data: CreateCouponDtoType & { merchant: Types.ObjectId; isActive: boolean }): Promise<ICoupon> {
     try {
       const coupon = await Coupon.create(data);
       return coupon.toObject() as ICoupon;
@@ -22,6 +22,15 @@ export class CouponRepository {
       return coupon ? (coupon.toObject() as ICoupon) : null;
     } catch (error) {
       throw new AppError('Error finding coupon', 500);
+    }
+  }
+
+  async findRedemptionById(id: string): Promise<ICouponRedemption | null> {
+    try {
+      const redemption = await CouponRedemption.findById(id);
+      return redemption ? (redemption.toObject() as ICouponRedemption) : null;
+    } catch (error) {
+      throw new AppError('Error finding redemption', 500);
     }
   }
 
@@ -43,6 +52,38 @@ export class CouponRepository {
     }
   }
 
+  async findByMerchant(merchantId: string): Promise<ICoupon[]> {
+    try {
+      const coupons = await Coupon.find({ merchant: merchantId });
+      return coupons.map(coupon => coupon.toObject() as ICoupon);
+    } catch (error) {
+      throw new AppError('Error finding merchant coupons', 500);
+    }
+  }
+
+  async findActive(): Promise<ICoupon[]> {
+    try {
+      const now = new Date();
+      const coupons = await Coupon.find({
+        isActive: true,
+        startDate: { $lte: now },
+        endDate: { $gte: now }
+      });
+      return coupons.map(coupon => coupon.toObject() as ICoupon);
+    } catch (error) {
+      throw new AppError('Error finding active coupons', 500);
+    }
+  }
+
+  async findByCategory(category: string): Promise<ICoupon[]> {
+    try {
+      const coupons = await Coupon.find({ category });
+      return coupons.map(coupon => coupon.toObject() as ICoupon);
+    } catch (error) {
+      throw new AppError('Error finding coupons by category', 500);
+    }
+  }
+
   async delete(id: string): Promise<boolean> {
     try {
       const result = await Coupon.findByIdAndDelete(id);
@@ -58,38 +99,6 @@ export class CouponRepository {
       return coupons.map(coupon => coupon.toObject() as ICoupon);
     } catch (error) {
       throw new AppError('Error finding coupons', 500);
-    }
-  }
-
-  async findByMerchant(merchantId: string): Promise<ICoupon[]> {
-    try {
-      const coupons = await Coupon.find({ merchant: merchantId });
-      return coupons.map(coupon => coupon.toObject() as ICoupon);
-    } catch (error) {
-      throw new AppError('Error finding merchant coupons', 500);
-    }
-  }
-
-  async findByCategory(category: string): Promise<ICoupon[]> {
-    try {
-      const coupons = await Coupon.find({ category });
-      return coupons.map(coupon => coupon.toObject() as ICoupon);
-    } catch (error) {
-      throw new AppError('Error finding coupons by category', 500);
-    }
-  }
-
-  async findActive(): Promise<ICoupon[]> {
-    try {
-      const now = new Date();
-      const coupons = await Coupon.find({
-        isActive: true,
-        startDate: { $lte: now },
-        endDate: { $gte: now }
-      });
-      return coupons.map(coupon => coupon.toObject() as ICoupon);
-    } catch (error) {
-      throw new AppError('Error finding active coupons', 500);
     }
   }
 
@@ -176,4 +185,4 @@ export class CouponRepository {
       throw new AppError('Error getting merchant redemption stats', 500);
     }
   }
-} 
+}
